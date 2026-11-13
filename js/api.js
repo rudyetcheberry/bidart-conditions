@@ -90,7 +90,7 @@ export async function fetchDemo(hours = 48) {
     const day = Math.floor(i / 24);
     marine.push({
       time: t,
-      windSpeed: Math.round(8 + 10 * Math.sin(i / 5) + day * 3 + Math.random() * 4),
+      windSpeed: Math.max(0, Math.round(8 + 10 * Math.sin(i / 5) + day * 3 + Math.random() * 4)),
       gust: null,
       windDirection: 250 + Math.round(40 * Math.sin(i / 8)),
       swellHeight: +(1.2 + 0.8 * Math.sin(i / 9 + 1) + Math.random() * 0.3).toFixed(2),
