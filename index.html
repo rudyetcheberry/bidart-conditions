@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b3d5c">
+  <title>Conditions Bidart</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Conditions Bidart</h1>
+    <p class="subtitle" id="last-update">—</p>
+  </header>
+
+  <main id="main">
+    <!-- ONGLET RELEVÉS -->
+    <section id="tab-current" class="tab active">
+      <div id="current-cards" class="cards">
+        <p class="hint">Chargement des relevés…</p>
+      </div>
+      <div class="card">
+        <h2>Prochaines marées</h2>
+        <ul id="tide-list" class="tide-list"><li class="hint">—</li></ul>
+      </div>
+    </section>
+
+    <!-- ONGLET PRÉVISIONS -->
+    <section id="tab-forecast" class="tab">
+      <div class="card">
+        <h2>Prévisions 48 h</h2>
+        <div class="table-wrap">
+          <table id="forecast-table">
+            <thead>
+              <tr>
+                <th>Heure</th><th>Houle</th><th>Période</th><th>Vent</th><th>Secteur</th><th>Marée</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ONGLET ALERTES -->
+    <section id="tab-alerts" class="tab">
+      <div class="card">
+        <h2>Mes critères d'alerte</h2>
+        <form id="alert-form">
+          <fieldset>
+            <legend>Houle</legend>
+            <label>Hauteur minimum (m)
+              <input type="number" id="swell-min" step="0.1" min="0" max="10">
+            </label>
+            <label>Hauteur maximum (m)
+              <input type="number" id="swell-max" step="0.1" min="0" max="10">
+            </label>
+            <label>Période minimum (s)
+              <input type="number" id="period-min" step="1" min="0" max="25">
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Vent</legend>
+            <label>Vitesse maximum (km/h)
+              <input type="number" id="wind-max" step="1" min="0" max="150">
+            </label>
+            <label>Secteurs de vent acceptés
+              <select id="wind-dir" multiple size="6">
+                <option value="any">Tous secteurs</option>
+                <option value="N">Nord</option>
+                <option value="NE">Nord-Est</option>
+                <option value="E">Est</option>
+                <option value="SE">Sud-Est</option>
+                <option value="S">Sud</option>
+                <option value="SW">Sud-Ouest</option>
+                <option value="W">Ouest</option>
+                <option value="NW">Nord-Ouest</option>
+              </select>
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Marée</legend>
+            <label>Prévenir avant
+              <select id="tide-lead">
+                <option value="0">Jamais</option>
+                <option value="30">30 min</option>
+                <option value="60">1 h</option>
+                <option value="120">2 h</option>
+              </select>
+            </label>
+            <label>États concernés
+              <select id="tide-states" multiple size="2">
+                <option value="high">Marée haute</option>
+                <option value="low">Marée basse</option>
+              </select>
+            </label>
+          </fieldset>
+          <button type="submit" class="primary">Enregistrer les critères</button>
+        </form>
+      </div>
+      <div class="card">
+        <h2>Notifications</h2>
+        <button id="btn-notify" class="primary">Activer les notifications</button>
+        <p id="notify-status" class="hint">—</p>
+      </div>
+      <div class="card">
+        <h2>Fenêtres favorables (48 h)</h2>
+        <ul id="windows-list" class="windows-list"><li class="hint">—</li></ul>
+      </div>
+    </section>
+
+    <!-- ONGLET RÉGLAGES -->
+    <section id="tab-settings" class="tab">
+      <div class="card">
+        <h2>API Stormglass</h2>
+        <p class="hint">Créez un compte gratuit sur stormglass.io pour obtenir une clé API
+          (50 requêtes/jour en offre gratuite). La clé reste stockée sur votre téléphone.</p>
+        <label>Clé API
+          <input type="password" id="api-key" placeholder="Votre clé Stormglass" autocomplete="off">
+        </label>
+        <button id="btn-save-key" class="primary">Enregistrer la clé</button>
+      </div>
+      <div class="card">
+        <h2>Point de mesure</h2>
+        <label>Latitude
+          <input type="number" id="lat" step="0.0001">
+        </label>
+        <label>Longitude
+          <input type="number" id="lng" step="0.0001">
+        </label>
+        <button id="btn-save-point" class="primary">Enregistrer le point</button>
+      </div>
+      <div class="card">
+        <h2>Mode démo</h2>
+        <label class="switch-row">
+          <span>Utiliser des données simulées (sans clé API)</span>
+          <input type="checkbox" id="demo-mode">
+        </label>
+      </div>
+    </section>
+  </main>
+
+  <nav class="bottom-nav">
+    <button data-tab="tab-current" class="active">Relevés</button>
+    <button data-tab="tab-forecast">Prévisions</button>
+    <button data-tab="tab-alerts">Alertes</button>
+    <button data-tab="tab-settings">Réglages</button>
+  </nav>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
