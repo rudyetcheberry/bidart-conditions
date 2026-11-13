@@ -13,9 +13,13 @@ const MARINE_PARAMS = [
 ].join(',');
 
 async function sgFetch(path, params) {
-  const { apiKey } = Storage.getSettings();
+  const { apiKey, dailyQuota } = Storage.getSettings();
   if (!apiKey) {
     throw new Error('Clé API Stormglass manquante (onglet Réglages).');
+  }
+  const usage = Storage.getUsage();
+  if (usage.count >= dailyQuota) {
+    throw new Error(`Quota quotidien atteint (${dailyQuota} requêtes/jour). Réessayez demain.`);
   }
   const url = `${BASE}${path}?${new URLSearchParams(params)}`;
   const res = await fetch(url, { headers: { Authorization: apiKey } });
@@ -26,11 +30,13 @@ async function sgFetch(path, params) {
     throw new Error('Trop de requêtes, réessayez dans quelques minutes.');
   }
   if (res.status === 402) {
-    throw new Error('Quota quotidien Stormglass épuisé (offre gratuite : 50 requêtes/jour). Réessayez demain.');
+    throw new Error(`Quota quotidien Stormglass épuisé (${dailyQuota} requêtes/jour). Réessayez demain.`);
   }
   if (!res.ok) {
     throw new Error(`Erreur Stormglass ${res.status}`);
   }
+  usage.count += 1;
+  Storage.saveUsage(usage);
   return res.json();
 }
 

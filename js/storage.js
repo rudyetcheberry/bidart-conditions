@@ -16,6 +16,7 @@ export const DEFAULT_SETTINGS = {
   apiKey: '',
   demoMode: true,
   point: DEFAULT_POINT,
+  dailyQuota: 10,
 };
 
 function read(key, fallback) {
@@ -39,4 +40,10 @@ export const Storage = {
   saveAlertConfig: (config) => write('alerts', config),
   getLastData: () => read('lastData', null),
   saveLastData: (data) => write('lastData', data),
+  getUsage: () => {
+    const u = read('usage', { date: '', count: 0 });
+    const today = new Date().toISOString().slice(0, 10);
+    return u.date === today ? u : { date: today, count: 0 };
+  },
+  saveUsage: (usage) => write('usage', usage),
 };

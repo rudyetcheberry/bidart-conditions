@@ -1,5 +1,5 @@
 import { Storage } from './storage.js';
-import { fetchAll, fetchDemo } from './api.js';
+import { fetchMarine, fetchTideExtremes, fetchDemo } from './api.js';
 import {
   matchesCriteria,
   findFavorableWindows,
@@ -9,7 +9,8 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
-const FRESH_MS = 2 * 60 * 60 * 1000;
+const MARINE_TTL = 6 * 60 * 60 * 1000;
+const TIDE_TTL = 24 * 60 * 60 * 1000;
 
 let state = {
   data: null,
@@ -59,6 +60,12 @@ function setupSettings() {
     };
     Storage.saveSettings(state.settings);
     refresh();
+  });
+  $('daily-quota').value = state.settings.dailyQuota;
+  $('btn-save-quota').addEventListener('click', () => {
+    state.settings.dailyQuota = Math.max(1, parseInt($('daily-quota').value, 10) || 10);
+    Storage.saveSettings(state.settings);
+    updateUsageLabel();
   });
   $('demo-mode').addEventListener('change', (e) => {
     state.settings.demoMode = e.target.checked;
@@ -125,7 +132,7 @@ function updateNotifyStatus(perm) {
   $('notify-status').textContent = messages[p] || messages.default;
 }
 
-function revive(data) {
+function reviveData(data) {
   return {
     ...data,
     fetchedAt: new Date(data.fetchedAt),
@@ -138,40 +145,77 @@ function setUpdateLabel(text) {
   $('last-update').textContent = text;
 }
 
+function updateUsageLabel() {
+  const { dailyQuota } = state.settings;
+  const { count } = Storage.getUsage();
+  $('usage-status').textContent = `Requêtes Stormglass aujourd'hui : ${count} / ${dailyQuota}`;
+}
+
 async function refresh(force = false) {
-  const cached = Storage.getLastData();
-  const age = cached ? Date.now() - new Date(cached.fetchedAt).getTime() : Infinity;
-  if (!state.settings.demoMode && !force && cached && age < FRESH_MS) {
-    state.data = revive(cached);
-    const minutes = Math.max(1, Math.round((FRESH_MS - age) / 60000));
-    setUpdateLabel(`Données de ${state.data.fetchedAt.toLocaleTimeString('fr-FR')} · actualisation dans ~${minutes} min`);
+  updateUsageLabel();
+  if (state.settings.demoMode) {
+    const btn = $('btn-refresh');
+    btn.disabled = true;
+    try {
+      state.data = await fetchDemo();
+      setUpdateLabel(`Mis à jour à ${state.data.fetchedAt.toLocaleTimeString('fr-FR')} (mode démo)`);
+      render();
+    } finally {
+      btn.disabled = false;
+    }
+    return;
+  }
+
+  const cached = Storage.getLastData() ? reviveData(Storage.getLastData()) : null;
+  const now = Date.now();
+  const marineFresh = cached && now - cached.fetchedAt.getTime() < MARINE_TTL;
+  const tidesFresh = cached
+    && now - cached.fetchedAt.getTime() < TIDE_TTL
+    && cached.tides.some((t) => t.time > new Date());
+
+  if (!force && marineFresh && tidesFresh) {
+    state.data = cached;
+    const nextMs = cached.fetchedAt.getTime() + MARINE_TTL - now;
+    const minutes = Math.max(1, Math.round(nextMs / 60000));
+    setUpdateLabel(`Données de ${cached.fetchedAt.toLocaleTimeString('fr-FR')} · actualisation dans ~${minutes} min`);
     render();
     return;
   }
+
   const btn = $('btn-refresh');
   btn.disabled = true;
+  let error = null;
+  const data = cached ? reviveData(Storage.getLastData()) : { marine: [], tides: [], fetchedAt: new Date(0) };
   try {
-    state.data = state.settings.demoMode
-      ? await fetchDemo()
-      : await fetchAll(state.settings.point);
-    Storage.saveLastData(state.data);
-    setUpdateLabel(
-      `Mis à jour à ${state.data.fetchedAt.toLocaleTimeString('fr-FR')}` +
-      (state.settings.demoMode ? ' (mode démo)' : ' · prochaine actualisation dans ~2 h')
-    );
-    render();
-  } catch (err) {
-    if (cached) {
-      state.data = revive(cached);
-      setUpdateLabel(`Données du ${state.data.fetchedAt.toLocaleString('fr-FR')} · ${err.message}`);
-      render();
-    } else {
-      $('current-cards').innerHTML = `<p class="hint">${err.message}</p>`;
-      setUpdateLabel('Erreur de chargement');
+    if (!marineFresh) {
+      data.marine = await fetchMarine(state.settings.point);
+      data.fetchedAt = new Date();
     }
-  } finally {
-    btn.disabled = false;
+    if (!tidesFresh) {
+      data.tides = await fetchTideExtremes(state.settings.point);
+      data.fetchedAt = new Date();
+    }
+  } catch (err) {
+    error = err.message;
   }
+  btn.disabled = false;
+
+  if (data.marine.length === 0) {
+    $('current-cards').innerHTML = `<p class="hint">${error || 'Aucune donnée.'}</p>`;
+    setUpdateLabel('Erreur de chargement');
+    updateUsageLabel();
+    return;
+  }
+
+  state.data = data;
+  Storage.saveLastData(data);
+  if (error) {
+    setUpdateLabel(`Données du ${data.fetchedAt.toLocaleString('fr-FR')} · ${error}`);
+  } else {
+    setUpdateLabel(`Mis à jour à ${data.fetchedAt.toLocaleTimeString('fr-FR')} · météo 6 h, marées 24 h en cache`);
+  }
+  render();
+  updateUsageLabel();
 }
 
 function render() {

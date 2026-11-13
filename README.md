@@ -17,12 +17,15 @@ PWA mobile de relevés de vent, houle et marée sur la commune de Bidart
 
 ## Données et quota
 
-Source : [Stormglass API](https://stormglass.io) (offre gratuite : 50 requêtes/jour).
+Source : [Stormglass API](https://stormglass.io) (offre gratuite : **10 requêtes/jour**).
 
 L'application économise le quota :
 
-- les données sont mises en cache et considérées fraîches pendant **2 h**
-  (≈ 24 requêtes/jour en usage normal) ;
+- météo (vent, houle, température) mise en cache **6 h** ;
+- marées mises en cache **24 h** (elles sont prévisibles) ;
+- soit ≈ 5 requêtes/jour en usage normal, une actualisation complète coûtant 2 requêtes ;
+- compteur de requêtes du jour visible dans Réglages, avec quota configurable ;
+- blocage automatique avant d'atteindre la limite du plan ;
 - un bouton **↻** permet de forcer une actualisation ;
 - en cas d'erreur, le dernier relevé connu reste affiché avec son horodatage.
 

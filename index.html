@@ -139,6 +139,16 @@
         <button id="btn-save-point" class="primary">Enregistrer le point</button>
       </div>
       <div class="card">
+        <h2>Quota Stormglass</h2>
+        <p class="hint">Offre gratuite : 10 requêtes/jour (2 requêtes utilisées par actualisation complète).
+          L'app économise automatiquement : météo 6 h, marées 24 h en cache.</p>
+        <p id="usage-status" class="hint">—</p>
+        <label>Quota quotidien de votre plan (requêtes)
+          <input type="number" id="daily-quota" min="1" max="1000">
+        </label>
+        <button id="btn-save-quota" class="primary">Enregistrer le quota</button>
+      </div>
+      <div class="card">
         <h2>Mode démo</h2>
         <label class="switch-row">
           <span>Utiliser des données simulées (sans clé API)</span>
