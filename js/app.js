@@ -9,7 +9,7 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '6';
+const APP_VERSION = '7';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 
@@ -31,10 +31,26 @@ function init() {
   $('btn-refresh').addEventListener('click', () => refresh(true));
   const versionEl = $('app-version');
   if (versionEl) versionEl.textContent = `Version ${APP_VERSION} · code à jour`;
+  registerServiceWorker();
   refresh();
   setInterval(() => {
     if (document.visibilityState === 'visible') refresh();
   }, 15 * 60 * 1000);
+}
+
+function registerServiceWorker() {
+  if (!('serviceWorker' in navigator)) return;
+  navigator.serviceWorker.register('./sw.js').then((reg) => {
+    reg.addEventListener('updatefound', () => {
+      const sw = reg.installing;
+      if (!sw) return;
+      sw.addEventListener('statechange', () => {
+        if (sw.state === 'activated' && navigator.serviceWorker.controller) {
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(() => {});
 }
 
 function setupTabs() {
