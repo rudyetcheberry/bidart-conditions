@@ -189,6 +189,7 @@ async function refresh(force = false) {
   const tidesFresh = cached
     && now - cached.fetchedAt.getTime() < TIDE_TTL
     && cached.tides.some((t) => t.time > new Date());
+  const tideAge = cached ? now - cached.fetchedAt.getTime() : Infinity;
 
   if (!force && marineFresh && tidesFresh) {
     state.data = cached;
@@ -201,24 +202,30 @@ async function refresh(force = false) {
 
   const btn = $('btn-refresh');
   btn.disabled = true;
-  let error = null;
-  const data = cached ? reviveData(Storage.getLastData()) : { marine: [], tides: [], fetchedAt: new Date(0) };
-  try {
-    if (!marineFresh) {
+  const data = cached ? reviveData(rawCache) : { marine: [], tides: [], fetchedAt: new Date(0) };
+  const errors = [];
+
+  if (force || !marineFresh) {
+    try {
       data.marine = await fetchMarine(state.settings.point);
       data.fetchedAt = new Date();
+    } catch (err) {
+      errors.push(`vent/houle : ${err.message}`);
     }
-    if (!tidesFresh) {
+  }
+  const tidesUsable = data.tides.length > 0 && data.tides.some((t) => t.time > new Date());
+  if (force ? (!tidesUsable || tideAge > 60 * 60 * 1000) : !tidesFresh) {
+    try {
       data.tides = await fetchTideExtremes(state.settings.point);
       data.fetchedAt = new Date();
+    } catch (err) {
+      errors.push(`marées : ${err.message}`);
     }
-  } catch (err) {
-    error = err.message;
   }
   btn.disabled = false;
 
   if (data.marine.length === 0) {
-    $('current-cards').innerHTML = `<p class="hint">${error || 'Aucune donnée.'}</p>`;
+    $('current-cards').innerHTML = `<p class="hint">${errors.join(' · ') || 'Aucune donnée.'}</p>`;
     setUpdateLabel('Erreur de chargement');
     updateUsageLabel();
     return;
@@ -227,11 +234,9 @@ async function refresh(force = false) {
   data.source = 'live';
   state.data = data;
   Storage.saveLastData(data);
-  if (error) {
-    setUpdateLabel(`Données du ${data.fetchedAt.toLocaleString('fr-FR')} · ${error}`);
-  } else {
-    setUpdateLabel(`Mis à jour à ${data.fetchedAt.toLocaleTimeString('fr-FR')} · météo 6 h, marées 24 h en cache`);
-  }
+  const parts = [errors.length ? 'Données du' : 'Mis à jour à', data.fetchedAt.toLocaleTimeString('fr-FR')];
+  if (errors.length) parts.push(errors.join(' · '));
+  setUpdateLabel(parts.join(' '));
   render();
   updateUsageLabel();
 }
@@ -290,12 +295,16 @@ function metric(label, value, detail, favorable) {
 function renderTides() {
   const now = new Date();
   const next = state.data.tides.filter((t) => t.time > now).slice(0, 4);
-  $('tide-list').innerHTML = next.length
-    ? next.map((t) => `<li>
-        <span>${t.type === 'high' ? '🌊 Marée haute' : '🏖️ Marée basse'}</span>
-        <span>${t.time.toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })} · ${fmt(t.height, 1)} m</span>
-      </li>`).join('')
-    : '<li class="hint">Aucune marée à venir sur la période.</li>';
+  if (next.length === 0) {
+    $('tide-list').innerHTML = state.data.tides.length === 0
+      ? '<li class="hint">Marées indisponibles : clé Stormglass ou quota requis. Le bouton ↻ réessaie (1 requête/jour suffit).</li>'
+      : '<li class="hint">Aucune marée à venir sur la période.</li>';
+    return;
+  }
+  $('tide-list').innerHTML = next.map((t) => `<li>
+      <span>${t.type === 'high' ? '🌊 Marée haute' : '🏖️ Marée basse'}</span>
+      <span>${t.time.toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })} · ${fmt(t.height, 1)} m</span>
+    </li>`).join('');
 }
 
 function renderForecast() {
