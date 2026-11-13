@@ -9,6 +9,7 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
+const APP_VERSION = '6';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 
@@ -28,6 +29,8 @@ function init() {
   $('demo-mode').checked = state.settings.demoMode;
   updateDemoBanner();
   $('btn-refresh').addEventListener('click', () => refresh(true));
+  const versionEl = $('app-version');
+  if (versionEl) versionEl.textContent = `Version ${APP_VERSION} · code à jour`;
   refresh();
   setInterval(() => {
     if (document.visibilityState === 'visible') refresh();
@@ -62,12 +65,15 @@ function setupSettings() {
     Storage.saveSettings(state.settings);
     refresh();
   });
-  $('daily-quota').value = state.settings.dailyQuota;
-  $('btn-save-quota').addEventListener('click', () => {
-    state.settings.dailyQuota = Math.max(1, parseInt($('daily-quota').value, 10) || 10);
-    Storage.saveSettings(state.settings);
-    updateUsageLabel();
-  });
+  const dailyQuotaInput = $('daily-quota');
+  if (dailyQuotaInput) {
+    dailyQuotaInput.value = state.settings.dailyQuota;
+    $('btn-save-quota').addEventListener('click', () => {
+      state.settings.dailyQuota = Math.max(1, parseInt(dailyQuotaInput.value, 10) || 10);
+      Storage.saveSettings(state.settings);
+      updateUsageLabel();
+    });
+  }
   $('demo-mode').addEventListener('change', (e) => {
     state.settings.demoMode = e.target.checked;
     Storage.saveSettings(state.settings);
@@ -148,13 +154,16 @@ function setUpdateLabel(text) {
 }
 
 function updateDemoBanner() {
-  $('demo-banner').classList.toggle('hidden', !state.settings.demoMode);
+  const banner = $('demo-banner');
+  if (banner) banner.classList.toggle('hidden', !state.settings.demoMode);
 }
 
 function updateUsageLabel() {
+  const el = $('usage-status');
+  if (!el) return;
   const { dailyQuota } = state.settings;
   const { count } = Storage.getUsage();
-  $('usage-status').textContent = `Requêtes Stormglass aujourd'hui : ${count} / ${dailyQuota}`;
+  el.textContent = `Requêtes Stormglass aujourd'hui : ${count} / ${dailyQuota}`;
 }
 
 async function refresh(force = false) {

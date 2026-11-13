@@ -1,4 +1,4 @@
-const CACHE = 'bidart-conditions-v5';
+const CACHE = 'bidart-conditions-v6';
 const SHELL = [
   './index.html',
   './css/styles.css',
@@ -29,7 +29,14 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.hostname === 'api.stormglass.io') return;
   if (url.hostname.endsWith('open-meteo.com')) return;
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((cache) => cache.put(event.request, copy));
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
