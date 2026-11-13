@@ -9,6 +9,8 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
+const FRESH_MS = 2 * 60 * 60 * 1000;
+
 let state = {
   data: null,
   config: Storage.getAlertConfig(),
@@ -23,6 +25,7 @@ function init() {
   setupAlertForm();
   setupNotifications();
   $('demo-mode').checked = state.settings.demoMode;
+  $('btn-refresh').addEventListener('click', () => refresh(true));
   refresh();
   setInterval(() => {
     if (document.visibilityState === 'visible') refresh();
@@ -122,29 +125,52 @@ function updateNotifyStatus(perm) {
   $('notify-status').textContent = messages[p] || messages.default;
 }
 
-async function refresh() {
+function revive(data) {
+  return {
+    ...data,
+    fetchedAt: new Date(data.fetchedAt),
+    marine: data.marine.map((h) => ({ ...h, time: new Date(h.time) })),
+    tides: data.tides.map((t) => ({ ...t, time: new Date(t.time) })),
+  };
+}
+
+function setUpdateLabel(text) {
+  $('last-update').textContent = text;
+}
+
+async function refresh(force = false) {
+  const cached = Storage.getLastData();
+  const age = cached ? Date.now() - new Date(cached.fetchedAt).getTime() : Infinity;
+  if (!state.settings.demoMode && !force && cached && age < FRESH_MS) {
+    state.data = revive(cached);
+    const minutes = Math.max(1, Math.round((FRESH_MS - age) / 60000));
+    setUpdateLabel(`Données de ${state.data.fetchedAt.toLocaleTimeString('fr-FR')} · actualisation dans ~${minutes} min`);
+    render();
+    return;
+  }
+  const btn = $('btn-refresh');
+  btn.disabled = true;
   try {
     state.data = state.settings.demoMode
       ? await fetchDemo()
       : await fetchAll(state.settings.point);
     Storage.saveLastData(state.data);
-    $('last-update').textContent =
+    setUpdateLabel(
       `Mis à jour à ${state.data.fetchedAt.toLocaleTimeString('fr-FR')}` +
-      (state.settings.demoMode ? ' (mode démo)' : '');
+      (state.settings.demoMode ? ' (mode démo)' : ' · prochaine actualisation dans ~2 h')
+    );
     render();
   } catch (err) {
-    const cached = Storage.getLastData();
     if (cached) {
-      state.data = {
-        ...cached,
-        marine: cached.marine.map((h) => ({ ...h, time: new Date(h.time) })),
-        tides: cached.tides.map((t) => ({ ...t, time: new Date(t.time) })),
-      };
-      $('last-update').textContent = `Données en cache (${err.message})`;
+      state.data = revive(cached);
+      setUpdateLabel(`Données du ${state.data.fetchedAt.toLocaleString('fr-FR')} · ${err.message}`);
       render();
     } else {
       $('current-cards').innerHTML = `<p class="hint">${err.message}</p>`;
+      setUpdateLabel('Erreur de chargement');
     }
+  } finally {
+    btn.disabled = false;
   }
 }
 

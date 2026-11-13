@@ -30,6 +30,24 @@ body {
 .topbar h1 { margin: 0; font-size: 1.25rem; }
 .subtitle { margin: 4px 0 0; font-size: 0.8rem; opacity: 0.8; }
 
+.topbar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.refresh-btn {
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 1.3rem;
+  line-height: 1;
+  padding: 10px 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.refresh-btn:disabled { opacity: 0.5; }
+
 main { padding: 12px; }
 
 .tab { display: none; }

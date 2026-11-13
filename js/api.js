@@ -23,7 +23,10 @@ async function sgFetch(path, params) {
     throw new Error('Clé API refusée par Stormglass (401).');
   }
   if (res.status === 429) {
-    throw new Error('Quota Stormglass atteint (50 requêtes/jour en offre gratuite).');
+    throw new Error('Trop de requêtes, réessayez dans quelques minutes.');
+  }
+  if (res.status === 402) {
+    throw new Error('Quota quotidien Stormglass épuisé (offre gratuite : 50 requêtes/jour). Réessayez demain.');
   }
   if (!res.ok) {
     throw new Error(`Erreur Stormglass ${res.status}`);

@@ -15,9 +15,16 @@ PWA mobile de relevés de vent, houle et marée sur la commune de Bidart
 - **Mode démo** : données simulées pour tester sans clé API.
 - **Hors ligne** : service worker met l'interface en cache et sert le dernier relevé.
 
-## Données
+## Données et quota
 
 Source : [Stormglass API](https://stormglass.io) (offre gratuite : 50 requêtes/jour).
+
+L'application économise le quota :
+
+- les données sont mises en cache et considérées fraîches pendant **2 h**
+  (≈ 24 requêtes/jour en usage normal) ;
+- un bouton **↻** permet de forcer une actualisation ;
+- en cas d'erreur, le dernier relevé connu reste affiché avec son horodatage.
 
 - `/v2/weather/point` — vent, houle, température de l'eau
 - `/v2/tide/extremes/point` — marées hautes et basses
