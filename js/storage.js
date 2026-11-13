@@ -14,7 +14,7 @@ export const DEFAULT_ALERT_CONFIG = {
 
 export const DEFAULT_SETTINGS = {
   apiKey: '',
-  demoMode: true,
+  demoMode: false,
   point: DEFAULT_POINT,
   dailyQuota: 10,
 };

@@ -26,6 +26,7 @@ function init() {
   setupAlertForm();
   setupNotifications();
   $('demo-mode').checked = state.settings.demoMode;
+  updateDemoBanner();
   $('btn-refresh').addEventListener('click', () => refresh(true));
   refresh();
   setInterval(() => {
@@ -70,6 +71,7 @@ function setupSettings() {
   $('demo-mode').addEventListener('change', (e) => {
     state.settings.demoMode = e.target.checked;
     Storage.saveSettings(state.settings);
+    updateDemoBanner();
     refresh();
   });
 }
@@ -145,6 +147,10 @@ function setUpdateLabel(text) {
   $('last-update').textContent = text;
 }
 
+function updateDemoBanner() {
+  $('demo-banner').classList.toggle('hidden', !state.settings.demoMode);
+}
+
 function updateUsageLabel() {
   const { dailyQuota } = state.settings;
   const { count } = Storage.getUsage();
@@ -158,6 +164,7 @@ async function refresh(force = false) {
     btn.disabled = true;
     try {
       state.data = await fetchDemo();
+      state.data.source = 'demo';
       setUpdateLabel(`Mis à jour à ${state.data.fetchedAt.toLocaleTimeString('fr-FR')} (mode démo)`);
       render();
     } finally {
@@ -166,7 +173,8 @@ async function refresh(force = false) {
     return;
   }
 
-  const cached = Storage.getLastData() ? reviveData(Storage.getLastData()) : null;
+  const rawCache = Storage.getLastData();
+  const cached = rawCache && rawCache.source === 'live' ? reviveData(rawCache) : null;
   const now = Date.now();
   const marineFresh = cached && now - cached.fetchedAt.getTime() < MARINE_TTL;
   const tidesFresh = cached
@@ -207,6 +215,7 @@ async function refresh(force = false) {
     return;
   }
 
+  data.source = 'live';
   state.data = data;
   Storage.saveLastData(data);
   if (error) {

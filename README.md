@@ -12,7 +12,8 @@ PWA mobile de relevés de vent, houle et marée sur la commune de Bidart
   vitesse et secteurs de vent, préavis de marée (haute/basse).
 - **Notifications** locales quand les critères sont réunis ou qu'une marée approche.
 - **Fenêtres favorables** : liste des créneaux de 48 h satisfaisant tous les critères.
-- **Mode démo** : données simulées pour tester sans clé API.
+- **Mode démo** (désactivé par défaut) : données simulées avec bandeau d'avertissement
+  visible, à activer dans Réglages pour tester sans connexion.
 - **Hors ligne** : service worker met l'interface en cache et sert le dernier relevé.
 
 ## Données et quota
