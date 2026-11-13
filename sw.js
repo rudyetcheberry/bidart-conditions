@@ -1,4 +1,4 @@
-const CACHE = 'bidart-conditions-v3';
+const CACHE = 'bidart-conditions-v4';
 const SHELL = [
   './index.html',
   './css/styles.css',
@@ -28,6 +28,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.hostname === 'api.stormglass.io') return;
+  if (url.hostname.endsWith('open-meteo.com')) return;
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );

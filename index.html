@@ -120,9 +120,11 @@
     <!-- ONGLET RÉGLAGES -->
     <section id="tab-settings" class="tab">
       <div class="card">
-        <h2>API Stormglass</h2>
-        <p class="hint">Créez un compte gratuit sur stormglass.io pour obtenir une clé API
-          (50 requêtes/jour en offre gratuite). La clé reste stockée sur votre téléphone.</p>
+        <h2>Marées (API Stormglass)</h2>
+        <p class="hint">Le vent et la houle viennent d'Open-Meteo (gratuit, sans clé, sans limite).
+          Seules les marées utilisent Stormglass : créez un compte gratuit sur stormglass.io
+          pour obtenir une clé (10 requêtes/jour en offre gratuite, l'app n'en utilise qu'une).
+          La clé reste stockée sur votre téléphone.</p>
         <label>Clé API
           <input type="password" id="api-key" placeholder="Votre clé Stormglass" autocomplete="off">
         </label>
@@ -139,9 +141,9 @@
         <button id="btn-save-point" class="primary">Enregistrer le point</button>
       </div>
       <div class="card">
-        <h2>Quota Stormglass</h2>
-        <p class="hint">Offre gratuite : 10 requêtes/jour (2 requêtes utilisées par actualisation complète).
-          L'app économise automatiquement : météo 6 h, marées 24 h en cache.</p>
+        <h2>Quota Stormglass (marées)</h2>
+        <p class="hint">Offre gratuite : 10 requêtes/jour, dont l'app n'utilise qu'une seule
+          (marées mises en cache 24 h). Le vent et la houle ne consomment rien.</p>
         <p id="usage-status" class="hint">—</p>
         <label>Quota quotidien de votre plan (requêtes)
           <input type="number" id="daily-quota" min="1" max="1000">

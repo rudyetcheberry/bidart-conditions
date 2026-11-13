@@ -17,13 +17,14 @@ PWA mobile de relevés de vent, houle et marée sur la commune de Bidart
 
 ## Données et quota
 
-Source : [Stormglass API](https://stormglass.io) (offre gratuite : **10 requêtes/jour**).
+- **Vent, houle, température de l'eau** : [Open-Meteo](https://open-meteo.com)
+  (Marine API + Forecast API) — gratuit, sans clé, sans quota.
+- **Marées** : [Stormglass API](https://stormglass.io) (offre gratuite : 10 requêtes/jour).
 
-L'application économise le quota :
+L'application économise le quota Stormglass :
 
-- météo (vent, houle, température) mise en cache **6 h** ;
-- marées mises en cache **24 h** (elles sont prévisibles) ;
-- soit ≈ 5 requêtes/jour en usage normal, une actualisation complète coûtant 2 requêtes ;
+- marées mises en cache **24 h** (1 seule requête/jour) ;
+- météo mise en cache **6 h** côté application (sans coût quota) ;
 - compteur de requêtes du jour visible dans Réglages, avec quota configurable ;
 - blocage automatique avant d'atteindre la limite du plan ;
 - un bouton **↻** permet de forcer une actualisation ;
@@ -55,7 +56,7 @@ manifest.webmanifest  Manifeste PWA (installable)
 sw.js               Service worker (cache + notifications)
 css/styles.css      Thème mobile-first
 js/storage.js       Persistance localStorage (réglages, critères, dernier relevé)
-js/api.js           Client Stormglass + générateur de données de démo
+js/api.js           Open-Meteo (vent, houle) + Stormglass (marées) + données de démo
 js/alerts.js        Moteur de critères et fenêtres favorables
 js/app.js           Logique d'interface et notifications
 ```

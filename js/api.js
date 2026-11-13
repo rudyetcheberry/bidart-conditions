@@ -1,27 +1,52 @@
 import { Storage } from './storage.js';
 
-const BASE = 'https://api.stormglass.io/v2';
+const SG_BASE = 'https://api.stormglass.io/v2';
+const OM_MARINE = 'https://marine-api.open-meteo.com/v1/marine';
+const OM_FORECAST = 'https://api.open-meteo.com/v1/forecast';
 
-const MARINE_PARAMS = [
-  'windSpeed',
-  'windDirection',
-  'gust',
-  'swellHeight',
-  'swellPeriod',
-  'swellDirection',
-  'waterTemperature',
-].join(',');
+function pick(arr, i) {
+  return Array.isArray(arr) && i !== null && i !== undefined ? (arr[i] ?? null) : null;
+}
+
+export async function fetchMarine({ lat, lng }, hours = 48) {
+  const marineUrl = `${OM_MARINE}?latitude=${lat}&longitude=${lng}` +
+    `&hourly=swell_wave_height,swell_wave_period,swell_wave_direction,wave_height,sea_surface_temperature` +
+    `&forecast_hours=${hours}&timezone=auto`;
+  const weatherUrl = `${OM_FORECAST}?latitude=${lat}&longitude=${lng}` +
+    `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
+    `&forecast_hours=${hours}&timezone=auto&wind_speed_unit=kmh`;
+  const [marineRes, weatherRes] = await Promise.all([fetch(marineUrl), fetch(weatherUrl)]);
+  if (!marineRes.ok) throw new Error(`Erreur Open-Meteo Marine ${marineRes.status}`);
+  if (!weatherRes.ok) throw new Error(`Erreur Open-Meteo ${weatherRes.status}`);
+  const mh = (await marineRes.json()).hourly ?? {};
+  const wh = (await weatherRes.json()).hourly ?? {};
+  const marineIndex = new Map();
+  (mh.time ?? []).forEach((t, i) => marineIndex.set(t, i));
+  return (wh.time ?? []).map((t, i) => {
+    const mi = marineIndex.get(t) ?? null;
+    return {
+      time: new Date(t),
+      windSpeed: pick(wh.wind_speed_10m, i),
+      gust: pick(wh.wind_gusts_10m, i),
+      windDirection: pick(wh.wind_direction_10m, i),
+      swellHeight: pick(mh.swell_wave_height, mi) ?? pick(mh.wave_height, mi),
+      swellPeriod: pick(mh.swell_wave_period, mi),
+      swellDirection: pick(mh.swell_wave_direction, mi),
+      waterTemperature: pick(mh.sea_surface_temperature, mi),
+    };
+  });
+}
 
 async function sgFetch(path, params) {
   const { apiKey, dailyQuota } = Storage.getSettings();
   if (!apiKey) {
-    throw new Error('Clé API Stormglass manquante (onglet Réglages).');
+    throw new Error('Clé API Stormglass manquante (onglet Réglages) — nécessaire pour les marées.');
   }
   const usage = Storage.getUsage();
   if (usage.count >= dailyQuota) {
-    throw new Error(`Quota quotidien atteint (${dailyQuota} requêtes/jour). Réessayez demain.`);
+    throw new Error(`Quota quotidien atteint (${dailyQuota} requêtes/jour). Les marées seront mises à jour demain.`);
   }
-  const url = `${BASE}${path}?${new URLSearchParams(params)}`;
+  const url = `${SG_BASE}${path}?${new URLSearchParams(params)}`;
   const res = await fetch(url, { headers: { Authorization: apiKey } });
   if (res.status === 401) {
     throw new Error('Clé API refusée par Stormglass (401).');
@@ -40,28 +65,6 @@ async function sgFetch(path, params) {
   return res.json();
 }
 
-export async function fetchMarine({ lat, lng }, hours = 48) {
-  const now = new Date();
-  const end = new Date(now.getTime() + hours * 3600 * 1000);
-  const data = await sgFetch('/weather/point', {
-    lat,
-    lng,
-    params: MARINE_PARAMS,
-    start: now.toISOString(),
-    end: end.toISOString(),
-  });
-  return data.hours.map((h) => ({
-    time: new Date(h.time),
-    windSpeed: kph(h.windSpeed),
-    gust: kph(h.gust),
-    windDirection: h.windDirection,
-    swellHeight: h.swellHeight,
-    swellPeriod: h.swellPeriod,
-    swellDirection: h.swellDirection,
-    waterTemperature: h.waterTemperature,
-  }));
-}
-
 export async function fetchTideExtremes({ lat, lng }, hours = 48) {
   const now = new Date();
   const end = new Date(now.getTime() + hours * 3600 * 1000);
@@ -76,18 +79,6 @@ export async function fetchTideExtremes({ lat, lng }, hours = 48) {
     type: e.type,
     height: e.height,
   }));
-}
-
-function kph(v) {
-  return typeof v === 'number' ? v * 3.6 : null;
-}
-
-export async function fetchAll(point, hours = 48) {
-  const [marine, tides] = await Promise.all([
-    fetchMarine(point, hours),
-    fetchTideExtremes(point, hours),
-  ]);
-  return { marine, tides, fetchedAt: new Date() };
 }
 
 export async function fetchDemo(hours = 48) {
