@@ -1,10 +1,11 @@
-const CACHE = 'bidart-conditions-v7';
+const CACHE = 'bidart-conditions-v8';
 const SHELL = [
   './index.html',
   './css/styles.css',
   './js/app.js',
   './js/api.js',
   './js/alerts.js',
+  './js/chart.js',
   './js/storage.js',
   './manifest.webmanifest',
   './icons/icon-192.png',

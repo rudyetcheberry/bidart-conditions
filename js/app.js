@@ -6,10 +6,11 @@ import {
   upcomingTideAlerts,
   degToDir,
 } from './alerts.js';
+import { renderSwellChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '7';
+const APP_VERSION = '8';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 
@@ -324,6 +325,7 @@ function renderTides() {
 }
 
 function renderForecast() {
+  renderSwellChart($('swell-chart'), state.data.marine, state.config);
   const tbody = $('forecast-table').querySelector('tbody');
   tbody.innerHTML = state.data.marine
     .filter((_, i) => i % 2 === 0)
