@@ -1,4 +1,4 @@
-const CACHE = 'bidart-conditions-v16';
+const CACHE = 'bidart-conditions-v17';
 const SHELL = [
   './index.html',
   './css/styles.css',

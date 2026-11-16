@@ -10,7 +10,7 @@ import { renderSwellChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '16';
+const APP_VERSION = '17';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -78,8 +78,10 @@ function setupTabs() {
 }
 
 function setupSpotBar() {
+  const sel = $('spot-select');
+  if (!sel) return; // barre « Spot actif » retirée : le changement de spot se fait dans l'onglet Spots
   renderSpotSelect();
-  $('spot-select').addEventListener('change', (e) => {
+  sel.addEventListener('change', (e) => {
     state.activeSpotId = e.target.value;
     Storage.saveActiveSpotId(state.activeSpotId);
     state.data = null;
@@ -89,6 +91,7 @@ function setupSpotBar() {
 
 function renderSpotSelect() {
   const sel = $('spot-select');
+  if (!sel) return;
   sel.innerHTML = state.spots
     .map((s) => `<option value="${s.id}" ${s.id === state.activeSpotId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`)
     .join('');
