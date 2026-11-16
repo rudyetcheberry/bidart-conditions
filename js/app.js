@@ -10,7 +10,7 @@ import { renderSwellChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '14';
+const APP_VERSION = '15';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -464,7 +464,7 @@ function renderCurrent() {
   if (metar && typeof metar.windSpeed === 'number') {
     hour = { ...hour, windSpeed: metar.windSpeed, gust: metar.gust, windDirection: metar.windDirection };
   }
-  const { ok, checks } = matchesCriteria(hour, spot.config);
+  const { checks } = matchesCriteria(hour, spot.config);
   const nextTide = state.data.tides.find((t) => t.time > now);
   const cards = [
     metric('Houle (totale)', `${fmt(hour.swellHeight, 1)} m`,
@@ -483,12 +483,7 @@ function renderCurrent() {
       ? `${nextTide.type === 'high' ? 'Haute' : 'Basse'} à ${nextTide.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
       : '—', '', null),
   ];
-  const banner = `<div class="metric-card" style="grid-column: 1 / -1;">
-    <span class="label">Conditions à ${escapeHtml(spot.name)} vs vos critères (houle = hauteur totale)</span>
-    <div class="value">${ok ? 'Favorables' : 'Non favorables'}</div>
-    <span class="badge ${ok ? 'good' : 'bad'}">${ok ? 'Alerte justifiée' : "Pas d'alerte"}</span>
-  </div>`;
-  $('current-cards').innerHTML = banner + cards.join('');
+  $('current-cards').innerHTML = cards.join('');
 }
 
 function freshMetar() {
