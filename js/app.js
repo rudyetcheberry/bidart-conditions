@@ -6,11 +6,11 @@ import {
   upcomingTideAlerts,
   degToDir,
 } from './alerts.js';
-import { renderSwellChart } from './chart.js';
+import { renderSwellChart, renderTideChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '17';
+const APP_VERSION = '18';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -528,18 +528,7 @@ function metric(label, value, detail, favorable) {
 }
 
 function renderTides() {
-  const now = new Date();
-  const next = state.data.tides.filter((t) => t.time > now).slice(0, 4);
-  if (next.length === 0) {
-    $('tide-list').innerHTML = state.data.tides.length === 0
-      ? '<li class="hint">Marées indisponibles : clé Stormglass ou quota requis. Le bouton ↻ réessaie (1 requête/jour suffit).</li>'
-      : '<li class="hint">Aucune marée à venir sur la période.</li>';
-    return;
-  }
-  $('tide-list').innerHTML = next.map((t) => `<li>
-      <span>${t.type === 'high' ? '🌊 Marée haute' : '🏖️ Marée basse'}</span>
-      <span>${t.time.toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })} · ${fmt(t.height, 1)} m</span>
-    </li>`).join('');
+  renderTideChart($('tide-chart'), state.data.tides, new Date());
 }
 
 function renderForecast() {

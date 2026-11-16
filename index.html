@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css?v=17">
+  <link rel="stylesheet" href="css/styles.css?v=18">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -49,8 +49,8 @@
         <p class="hint">Chargement des relevés…</p>
       </div>
       <div class="card">
-        <h2>Prochaines marées</h2>
-        <ul id="tide-list" class="tide-list"><li class="hint">—</li></ul>
+        <h2>Marées — courbe 24 h</h2>
+        <div id="tide-chart"><p class="hint">—</p></div>
       </div>
     </section>
 
@@ -228,6 +228,6 @@
     </section>
   </main>
 
-  <script type="module" src="js/app.js?v=17"></script>
+  <script type="module" src="js/app.js?v=18"></script>
 </body>
 </html>

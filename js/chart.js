@@ -62,3 +62,84 @@ export function renderSwellChart(container, marine, config) {
     ${dots}
   </svg>`;
 }
+
+// Courbe de marée sur ~24 h, interpolée (cosinus) entre les extrêmes Stormglass.
+export function renderTideChart(container, tides, now) {
+  if (!container) return;
+  const hint = '<p class="hint">Courbe de marée indisponible : clé Stormglass ou quota requis. Le bouton ↻ réessaie.</p>';
+  if (!tides || tides.length < 2) { container.innerHTML = hint; return; }
+  const sorted = tides.slice().sort((a, b) => a.time - b.time);
+  const start = now.getTime() - 3 * 3600000;
+  const end = now.getTime() + 24 * 3600000;
+  const usable = sorted.filter((t) => t.time.getTime() >= start - 13 * 3600000 && t.time.getTime() <= end + 13 * 3600000);
+  if (usable.length < 2) { container.innerHTML = hint; return; }
+
+  // Échantillonnage : entre deux extrêmes consécutifs, la hauteur suit un cosinus.
+  const samples = [];
+  for (let i = 0; i < usable.length - 1; i++) {
+    const e1 = usable[i];
+    const e2 = usable[i + 1];
+    const t1 = e1.time.getTime();
+    const t2 = e2.time.getTime();
+    const segStart = Math.max(t1, start);
+    const segEnd = Math.min(t2, end);
+    if (segEnd <= segStart) continue;
+    for (let t = segStart; t <= segEnd; t += 10 * 60 * 1000) {
+      const frac = (t - t1) / (t2 - t1);
+      const h = (e1.height + e2.height) / 2 + (e1.height - e2.height) / 2 * Math.cos(Math.PI * frac);
+      samples.push({ t: t, h: h });
+    }
+  }
+  if (samples.length < 2) { container.innerHTML = hint; return; }
+
+  const heights = samples.map((s) => s.h).concat(usable.map((u) => u.height));
+  const yMin = Math.min.apply(null, heights) - 0.25;
+  const yMax = Math.max.apply(null, heights) + 0.25;
+  const x = (t) => PAD_L + ((t - start) / (end - start)) * (W - PAD_L - PAD_R);
+  const y = (v) => PAD_T + (1 - (v - yMin) / (yMax - yMin)) * (H - PAD_T - PAD_B);
+
+  const line = samples
+    .map((s, i) => `${i ? 'L' : 'M'}${x(s.t).toFixed(1)},${y(s.h).toFixed(1)}`)
+    .join(' ');
+  const baseY = (H - PAD_B).toFixed(1);
+  const area = `${line} L${x(samples[samples.length - 1].t).toFixed(1)},${baseY} L${x(samples[0].t).toFixed(1)},${baseY} Z`;
+
+  const range = yMax - yMin;
+  const stepY = range > 4 ? 1 : range > 2 ? 0.5 : 0.25;
+  let grid = '';
+  for (let v = Math.ceil(yMin / stepY) * stepY; v <= yMax; v += stepY) {
+    grid += `<line x1="${PAD_L}" y1="${y(v).toFixed(1)}" x2="${W - PAD_R}" y2="${y(v).toFixed(1)}" stroke="#e6edf1" stroke-width="1"/>`
+      + `<text x="${PAD_L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#6b7c86">${v.toFixed(1)}</text>`;
+  }
+
+  let xlabels = '';
+  const firstHour = Math.ceil(start / 3600000) * 3600000;
+  for (let t = firstHour; t <= end; t += 6 * 3600000) {
+    const d = new Date(t);
+    xlabels += `<text x="${x(t).toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="#6b7c86">${d.getHours()}h</text>`;
+  }
+
+  const nowX = x(now.getTime()).toFixed(1);
+  const nowLine = `<line x1="${nowX}" y1="${PAD_T}" x2="${nowX}" y2="${H - PAD_B}" stroke="#d0782a" stroke-width="1.5" stroke-dasharray="4 3"/>`
+    + `<text x="${nowX}" y="${PAD_T + 10}" text-anchor="middle" font-size="9" fill="#d0782a">maintenant</text>`;
+
+  const marks = usable
+    .filter((e) => e.time.getTime() >= start && e.time.getTime() <= end)
+    .map((e) => {
+      const high = e.type === 'high';
+      const cy = y(e.height);
+      const ly = high ? cy - 8 : cy + 16;
+      const label = `${high ? 'PM' : 'BM'} ${e.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${e.height.toFixed(1)} m`;
+      const anchor = x(e.time.getTime()) > W - 90 ? 'end' : (x(e.time.getTime()) < PAD_L + 60 ? 'start' : 'middle');
+      return `<circle cx="${x(e.time.getTime()).toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${high ? '#0e7fb0' : '#5a8ea6'}"/>`
+        + `<text x="${x(e.time.getTime()).toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="9" fill="#3d4f59">${label}</text>`
+        + `<title>${e.time.toLocaleString('fr-FR')} — ${high ? 'marée haute' : 'marée basse'} ${e.height.toFixed(1)} m</title>`;
+    }).join('');
+
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Courbe de marée sur 24 heures">
+    ${grid}${xlabels}
+    <path d="${area}" fill="#0e7fb0" opacity="0.12"/>
+    <path d="${line}" fill="none" stroke="#0e7fb0" stroke-width="2.5" stroke-linejoin="round"/>
+    ${nowLine}${marks}
+  </svg>`;
+}
