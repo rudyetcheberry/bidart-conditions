@@ -77,10 +77,13 @@ async function sgFetch(path, params) {
 export async function fetchTideExtremes({ lat, lng }, hours = 48) {
   const now = new Date();
   const end = new Date(now.getTime() + hours * 3600 * 1000);
+  // On demande aussi 13 h de marées passées : la courbe 24 h démarre 3 h avant
+  // « maintenant », il faut donc des extrêmes antérieurs pour la tracer en temps réel.
+  const start = new Date(now.getTime() - 13 * 3600 * 1000);
   const data = await sgFetch('/tide/extremes/point', {
     lat,
     lng,
-    start: now.toISOString(),
+    start: start.toISOString(),
     end: end.toISOString(),
   });
   return data.data.map((e) => ({

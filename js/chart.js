@@ -120,8 +120,18 @@ export function renderTideChart(container, tides, now) {
   }
 
   const nowX = x(now.getTime()).toFixed(1);
+  // Hauteur d'eau actuelle : échantillon le plus proche de « maintenant ».
+  let nowH = null;
+  let bestDiff = Infinity;
+  for (const s of samples) {
+    const d = Math.abs(s.t - now.getTime());
+    if (d < bestDiff) { bestDiff = d; nowH = s.h; }
+  }
+  const nowLabel = nowH !== null && bestDiff < 30 * 60 * 1000
+    ? `maintenant · ${nowH.toFixed(1)} m`
+    : 'maintenant';
   const nowLine = `<line x1="${nowX}" y1="${PAD_T}" x2="${nowX}" y2="${H - PAD_B}" stroke="#d0782a" stroke-width="1.5" stroke-dasharray="4 3"/>`
-    + `<text x="${nowX}" y="${PAD_T + 10}" text-anchor="middle" font-size="9" fill="#d0782a">maintenant</text>`;
+    + `<text x="${nowX}" y="${PAD_T + 10}" text-anchor="middle" font-size="9" fill="#d0782a">${nowLabel}</text>`;
 
   const marks = usable
     .filter((e) => e.time.getTime() >= start && e.time.getTime() <= end)
