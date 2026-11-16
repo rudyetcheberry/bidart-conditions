@@ -10,7 +10,7 @@ import { renderSwellChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '13';
+const APP_VERSION = '14';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -461,7 +461,6 @@ function renderCurrent() {
   // Si un relevé METAR LFBZ récent existe, il remplace le vent prévu
   // (vent mesuré = vérité terrain) pour la carte Vent et le verdict.
   const metar = freshMetar();
-  const forecastHour = hour;
   if (metar && typeof metar.windSpeed === 'number') {
     hour = { ...hour, windSpeed: metar.windSpeed, gust: metar.gust, windDirection: metar.windDirection };
   }
@@ -476,10 +475,7 @@ function renderCurrent() {
       checks.swell && checks.period),
     metric(metar && typeof metar.windSpeed === 'number' ? 'Vent (observé LFBZ)' : 'Vent',
       `${fmt(hour.windSpeed, 0)} km/h`,
-      `${degToDir(hour.windDirection)}${hour.gust ? ` · rafales ${fmt(hour.gust, 0)} km/h` : ''}`
-      + (metar && typeof metar.windSpeed === 'number'
-        ? ` · prévu ${fmt(forecastHour.windSpeed, 0)} km/h`
-        : ''),
+      `${degToDir(hour.windDirection)}${hour.gust ? ` · rafales ${fmt(hour.gust, 0)} km/h` : ''}`,
       checks.wind && checks.windDir),
     metric('Eau', `${fmt(hour.waterTemperature, 1)} °C`, '', null),
     (!metar ? metarCard() : ''),
