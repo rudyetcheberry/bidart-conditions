@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css?v=15">
+  <link rel="stylesheet" href="css/styles.css?v=16">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -29,6 +29,14 @@
       <button id="btn-refresh" class="refresh-btn" aria-label="Actualiser">↻</button>
     </div>
   </header>
+
+  <nav class="bottom-nav">
+    <button data-tab="tab-current" class="active">Relevés</button>
+    <button data-tab="tab-forecast">Prévisions</button>
+    <button data-tab="tab-alerts">Alertes</button>
+    <button data-tab="tab-spots">Spots</button>
+    <button data-tab="tab-settings">Réglages</button>
+  </nav>
 
   <main id="main">
     <div id="boot-error" class="demo-banner hidden"></div>
@@ -225,14 +233,6 @@
     </section>
   </main>
 
-  <nav class="bottom-nav">
-    <button data-tab="tab-current" class="active">Relevés</button>
-    <button data-tab="tab-forecast">Prévisions</button>
-    <button data-tab="tab-alerts">Alertes</button>
-    <button data-tab="tab-spots">Spots</button>
-    <button data-tab="tab-settings">Réglages</button>
-  </nav>
-
-  <script type="module" src="js/app.js?v=15"></script>
+  <script type="module" src="js/app.js?v=16"></script>
 </body>
 </html>
