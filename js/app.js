@@ -10,7 +10,7 @@ import { renderSwellChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '12';
+const APP_VERSION = '13';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -458,6 +458,13 @@ function renderCurrent() {
     const d = Math.abs(h.time - now);
     if (d < bestDelta) { bestDelta = d; hour = h; }
   }
+  // Si un relevé METAR LFBZ récent existe, il remplace le vent prévu
+  // (vent mesuré = vérité terrain) pour la carte Vent et le verdict.
+  const metar = freshMetar();
+  const forecastHour = hour;
+  if (metar && typeof metar.windSpeed === 'number') {
+    hour = { ...hour, windSpeed: metar.windSpeed, gust: metar.gust, windDirection: metar.windDirection };
+  }
   const { ok, checks } = matchesCriteria(hour, spot.config);
   const nextTide = state.data.tides.find((t) => t.time > now);
   const cards = [
@@ -467,11 +474,15 @@ function renderCurrent() {
         ? ` · primaire ${fmt(hour.swellPrimaryHeight, 1)} m`
         : ''),
       checks.swell && checks.period),
-    metric('Vent', `${fmt(hour.windSpeed, 0)} km/h`,
-      `${degToDir(hour.windDirection)}${hour.gust ? ` · rafales ${fmt(hour.gust, 0)} km/h` : ''}`,
+    metric(metar && typeof metar.windSpeed === 'number' ? 'Vent (observé LFBZ)' : 'Vent',
+      `${fmt(hour.windSpeed, 0)} km/h`,
+      `${degToDir(hour.windDirection)}${hour.gust ? ` · rafales ${fmt(hour.gust, 0)} km/h` : ''}`
+      + (metar && typeof metar.windSpeed === 'number'
+        ? ` · prévu ${fmt(forecastHour.windSpeed, 0)} km/h`
+        : ''),
       checks.wind && checks.windDir),
     metric('Eau', `${fmt(hour.waterTemperature, 1)} °C`, '', null),
-    metarCard(),
+    (!metar ? metarCard() : ''),
     metric('Marée', nextTide
       ? `${nextTide.type === 'high' ? 'Haute' : 'Basse'} à ${nextTide.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
       : '—', '', null),
@@ -484,9 +495,16 @@ function renderCurrent() {
   $('current-cards').innerHTML = banner + cards.join('');
 }
 
+function freshMetar() {
+  if (!state.metar || !(state.metar.time instanceof Date)) return null;
+  const age = Date.now() - state.metar.time.getTime();
+  // Relevé METAR de plus de 3 h : trop ancien pour représenter l'instant présent.
+  if (age > 3 * 60 * 60 * 1000) return null;
+  return state.metar;
+}
+
 function metarCard() {
-  if (!state.settings.metarRelay) return '';
-  if (state.metarError) {
+  if (!state.settings.metarRelay) return '';  if (state.metarError) {
     return `<div class="metric-card">
       <span class="label">Vent observé (LFBZ)</span>
       <div class="detail">${state.metarError}</div>
@@ -572,11 +590,17 @@ function checkAlerts() {
   const current = state.data.marine.find((h) => Math.abs(h.time - now) < 60 * 60 * 1000);
   const bodyParts = [];
   if (current) {
-    const { ok } = matchesCriteria(current, spot.config);
+    // Priorité au vent observé LFBZ s'il est récent.
+    const metar = freshMetar();
+    let evalHour = current;
+    if (metar && typeof metar.windSpeed === 'number') {
+      evalHour = { ...current, windSpeed: metar.windSpeed, gust: metar.gust, windDirection: metar.windDirection };
+    }
+    const { ok } = matchesCriteria(evalHour, spot.config);
     if (ok) {
       bodyParts.push(
-        `${spot.name} : conditions favorables — houle ${fmt(current.swellHeight, 1)} m, ` +
-        `vent ${fmt(current.windSpeed, 0)} km/h (${degToDir(current.windDirection)}).`
+        `${spot.name} : conditions favorables — houle ${fmt(evalHour.swellHeight, 1)} m, ` +
+        `vent ${fmt(evalHour.windSpeed, 0)} km/h (${degToDir(evalHour.windDirection)}).`
       );
     }
   }
