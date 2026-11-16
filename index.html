@@ -8,7 +8,16 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=9">
+  <script>
+    window.addEventListener('error', function () {
+      var el = document.getElementById('boot-error');
+      if (el && el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        el.textContent = "Erreur de chargement de l'application : votre navigateur est peut-être trop ancien. Essayez un Chrome ou Firefox récent, ou videz le cache (Ctrl+Maj+R).";
+      }
+    });
+  </script>
 </head>
 <body>
   <header class="topbar">
@@ -22,6 +31,7 @@
   </header>
 
   <main id="main">
+    <div id="boot-error" class="demo-banner hidden"></div>
     <div id="demo-banner" class="demo-banner hidden">
       ⚠️ Mode démo actif : données simulées. Désactivez-le dans l'onglet Réglages.
     </div>
@@ -179,6 +189,6 @@
     <button data-tab="tab-settings">Réglages</button>
   </nav>
 
-  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/app.js?v=9"></script>
 </body>
 </html>

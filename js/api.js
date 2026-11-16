@@ -5,7 +5,9 @@ const OM_MARINE = 'https://marine-api.open-meteo.com/v1/marine';
 const OM_FORECAST = 'https://api.open-meteo.com/v1/forecast';
 
 function pick(arr, i) {
-  return Array.isArray(arr) && i !== null && i !== undefined ? (arr[i] ?? null) : null;
+  if (!Array.isArray(arr) || i === null || i === undefined) return null;
+  const v = arr[i];
+  return v === null || v === undefined ? null : v;
 }
 
 export async function fetchMarine({ lat, lng }, hours = 48) {
@@ -18,18 +20,19 @@ export async function fetchMarine({ lat, lng }, hours = 48) {
   const [marineRes, weatherRes] = await Promise.all([fetch(marineUrl), fetch(weatherUrl)]);
   if (!marineRes.ok) throw new Error(`Erreur Open-Meteo Marine ${marineRes.status}`);
   if (!weatherRes.ok) throw new Error(`Erreur Open-Meteo ${weatherRes.status}`);
-  const mh = (await marineRes.json()).hourly ?? {};
-  const wh = (await weatherRes.json()).hourly ?? {};
+  const mh = (await marineRes.json()).hourly || {};
+  const wh = (await weatherRes.json()).hourly || {};
   const marineIndex = new Map();
-  (mh.time ?? []).forEach((t, i) => marineIndex.set(t, i));
-  return (wh.time ?? []).map((t, i) => {
-    const mi = marineIndex.get(t) ?? null;
+  (mh.time || []).forEach((t, i) => marineIndex.set(t, i));
+  return (wh.time || []).map((t, i) => {
+    const mi = marineIndex.has(t) ? marineIndex.get(t) : null;
+    const swell = pick(mh.swell_wave_height, mi);
     return {
       time: new Date(t),
       windSpeed: pick(wh.wind_speed_10m, i),
       gust: pick(wh.wind_gusts_10m, i),
       windDirection: pick(wh.wind_direction_10m, i),
-      swellHeight: pick(mh.swell_wave_height, mi) ?? pick(mh.wave_height, mi),
+      swellHeight: swell !== null ? swell : pick(mh.wave_height, mi),
       swellPeriod: pick(mh.swell_wave_period, mi),
       swellDirection: pick(mh.swell_wave_direction, mi),
       waterTemperature: pick(mh.sea_surface_temperature, mi),
