@@ -23,6 +23,7 @@ export const DEFAULT_SETTINGS = {
   apiKey: '',
   demoMode: false,
   dailyQuota: 10,
+  metarRelay: '',
 };
 
 function read(key, fallback) {
@@ -70,6 +71,9 @@ export const Storage = {
 
   getTides: () => read('tides', null),
   saveTides: (tides) => write('tides', tides),
+
+  getMetar: () => read('metar', null),
+  saveMetar: (metar) => write('metar', metar),
 
   getUsage: () => {
     const u = read('usage', { date: '', count: 0 });

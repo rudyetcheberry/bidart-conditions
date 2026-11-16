@@ -1,5 +1,5 @@
 import { Storage, DEFAULT_CRITERIA } from './storage.js';
-import { fetchMarine, fetchTideExtremes, fetchDemo } from './api.js';
+import { fetchMarine, fetchTideExtremes, fetchDemo, fetchMetar } from './api.js';
 import {
   matchesCriteria,
   findFavorableWindows,
@@ -10,15 +10,18 @@ import { renderSwellChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '10';
+const APP_VERSION = '11';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
+const METAR_TTL = 30 * 60 * 1000;
 
 let state = {
   settings: Storage.getSettings(),
   spots: Storage.getSpots(),
   activeSpotId: Storage.getActiveSpotId(),
   data: null,
+  metar: null,
+  metarError: null,
   editingSpotId: null,
 };
 
@@ -101,6 +104,12 @@ function setupSettings() {
   $('api-key').value = state.settings.apiKey;
   $('btn-save-key').addEventListener('click', () => {
     state.settings.apiKey = $('api-key').value.trim();
+    Storage.saveSettings(state.settings);
+    refresh(true);
+  });
+  $('metar-relay').value = state.settings.metarRelay || '';
+  $('btn-save-relay').addEventListener('click', () => {
+    state.settings.metarRelay = $('metar-relay').value.trim().replace(/\/$/, '');
     Storage.saveSettings(state.settings);
     refresh(true);
   });
@@ -331,6 +340,8 @@ async function refresh(force = false) {
       return;
     }
 
+    loadMetar();
+
     const spot = activeSpot();
     const rawCache = Storage.getLastData(spot.id);
     const cached = rawCache && rawCache.source === 'live' ? reviveData(rawCache) : null;
@@ -406,6 +417,27 @@ function tideRetryAllowed() {
   return Date.now() - new Date(rawTides.fetchedAt).getTime() > 60 * 60 * 1000;
 }
 
+async function loadMetar() {
+  const relay = state.settings.metarRelay;
+  if (!relay) { state.metar = null; state.metarError = null; return; }
+  const raw = Storage.getMetar();
+  if (raw && Date.now() - new Date(raw.fetchedAt).getTime() < METAR_TTL) {
+    state.metar = { ...raw.data, time: new Date(raw.data.time) };
+    state.metarError = null;
+    renderCurrent();
+    return;
+  }
+  try {
+    const metar = await fetchMetar(relay);
+    state.metar = metar;
+    state.metarError = null;
+    Storage.saveMetar({ data: { ...metar, time: metar.time.toISOString() }, fetchedAt: new Date().toISOString() });
+  } catch (err) {
+    state.metarError = err.message;
+  }
+  renderCurrent();
+}
+
 /* ---------- Rendu ---------- */
 
 function render() {
@@ -429,23 +461,46 @@ function renderCurrent() {
   const { ok, checks } = matchesCriteria(hour, spot.config);
   const nextTide = state.data.tides.find((t) => t.time > now);
   const cards = [
-    metric('Houle', `${fmt(hour.swellHeight, 1)} m`,
-      `${degToDir(hour.swellDirection)} · ${fmt(hour.swellPeriod, 0)} s`,
+    metric('Houle (totale)', `${fmt(hour.swellHeight, 1)} m`,
+      `${degToDir(hour.swellDirection)} · pic ${fmt(hour.swellPeriod, 0)} s`
+      + (hour.swellPrimaryHeight !== null && hour.swellPrimaryHeight !== undefined
+        ? ` · primaire ${fmt(hour.swellPrimaryHeight, 1)} m`
+        : ''),
       checks.swell && checks.period),
     metric('Vent', `${fmt(hour.windSpeed, 0)} km/h`,
       `${degToDir(hour.windDirection)}${hour.gust ? ` · rafales ${fmt(hour.gust, 0)} km/h` : ''}`,
       checks.wind && checks.windDir),
     metric('Eau', `${fmt(hour.waterTemperature, 1)} °C`, '', null),
+    metarCard(),
     metric('Marée', nextTide
       ? `${nextTide.type === 'high' ? 'Haute' : 'Basse'} à ${nextTide.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
       : '—', '', null),
   ];
   const banner = `<div class="metric-card" style="grid-column: 1 / -1;">
-    <span class="label">Conditions à ${escapeHtml(spot.name)} vs vos critères</span>
+    <span class="label">Conditions à ${escapeHtml(spot.name)} vs vos critères (houle = hauteur totale)</span>
     <div class="value">${ok ? 'Favorables' : 'Non favorables'}</div>
     <span class="badge ${ok ? 'good' : 'bad'}">${ok ? 'Alerte justifiée' : "Pas d'alerte"}</span>
   </div>`;
   $('current-cards').innerHTML = banner + cards.join('');
+}
+
+function metarCard() {
+  if (!state.settings.metarRelay) return '';
+  if (state.metarError) {
+    return `<div class="metric-card">
+      <span class="label">Vent observé (LFBZ)</span>
+      <div class="detail">${state.metarError}</div>
+    </div>`;
+  }
+  if (!state.metar) return '';
+  const m = state.metar;
+  const dir = typeof m.windDirection === 'number' ? degToDir(m.windDirection) : 'variable';
+  const detail = `${dir} · mesuré à ${m.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`;
+  return `<div class="metric-card">
+    <span class="label">Vent observé (LFBZ)</span>
+    <div class="value">${fmt(m.windSpeed, 0)} km/h</div>
+    <div class="detail">${detail}${m.gust ? ` · rafales ${fmt(m.gust, 0)}` : ''}</div>
+  </div>`;
 }
 
 function metric(label, value, detail, favorable) {

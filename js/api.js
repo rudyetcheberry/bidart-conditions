@@ -12,7 +12,7 @@ function pick(arr, i) {
 
 export async function fetchMarine({ lat, lng }, hours = 48) {
   const marineUrl = `${OM_MARINE}?latitude=${lat}&longitude=${lng}` +
-    `&hourly=swell_wave_height,swell_wave_period,swell_wave_direction,wave_height,sea_surface_temperature` +
+    `&hourly=wave_height,swell_wave_height,swell_wave_peak_period,swell_wave_period,swell_wave_direction,wind_wave_height,sea_surface_temperature` +
     `&forecast_hours=${hours}&timezone=auto`;
   const weatherUrl = `${OM_FORECAST}?latitude=${lat}&longitude=${lng}` +
     `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m` +
@@ -26,15 +26,21 @@ export async function fetchMarine({ lat, lng }, hours = 48) {
   (mh.time || []).forEach((t, i) => marineIndex.set(t, i));
   return (wh.time || []).map((t, i) => {
     const mi = marineIndex.has(t) ? marineIndex.get(t) : null;
-    const swell = pick(mh.swell_wave_height, mi);
+    const swellPrimary = pick(mh.swell_wave_height, mi);
+    const total = pick(mh.wave_height, mi);
     return {
       time: new Date(t),
       windSpeed: pick(wh.wind_speed_10m, i),
       gust: pick(wh.wind_gusts_10m, i),
       windDirection: pick(wh.wind_direction_10m, i),
-      swellHeight: swell !== null ? swell : pick(mh.wave_height, mi),
-      swellPeriod: pick(mh.swell_wave_period, mi),
+      // houle affichée = hauteur totale (houle + mer de vent), plus proche du réel
+      swellHeight: total !== null ? total : swellPrimary,
+      swellPrimaryHeight: swellPrimary,
+      swellPeriod: pick(mh.swell_wave_peak_period, mi) !== null
+        ? pick(mh.swell_wave_peak_period, mi)
+        : pick(mh.swell_wave_period, mi),
       swellDirection: pick(mh.swell_wave_direction, mi),
+      windWaveHeight: pick(mh.wind_wave_height, mi),
       waterTemperature: pick(mh.sea_surface_temperature, mi),
     };
   });
@@ -82,6 +88,25 @@ export async function fetchTideExtremes({ lat, lng }, hours = 48) {
     type: e.type,
     height: e.height,
   }));
+}
+
+export async function fetchMetar(relayUrl) {
+  const url = relayUrl + (relayUrl.includes('?') ? '&' : '?') + 'ids=LFBZ';
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Erreur relais METAR ${res.status}`);
+  const arr = await res.json();
+  if (!Array.isArray(arr) || arr.length === 0) throw new Error('METAR indisponible');
+  const m = arr[0];
+  const kt = (v) => (typeof v === 'number' ? Math.round(v * 1.852) : null);
+  return {
+    time: new Date(m.reportTime || m.obsTime * 1000),
+    windSpeed: kt(m.wspd),
+    gust: kt(m.wgst),
+    windDirection: m.wdir,
+    temperature: m.temp,
+    pressure: m.altim,
+    raw: m.rawOb || '',
+  };
 }
 
 export async function fetchDemo(hours = 48) {

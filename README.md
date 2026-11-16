@@ -46,6 +46,44 @@ L'application économise le quota Stormglass :
 La clé API est saisie dans l'onglet Réglages et stockée uniquement en local
 (`localStorage`). Aucun serveur intermédiaire.
 
+## Vent observé (METAR LFBZ) — optionnel
+
+Pour afficher en plus le vent **mesuré** à l'aéroport de Biarritz-Anglet (LFBZ,
+toutes les 30 min), déployez ce mini-relais sur [Cloudflare Workers](https://workers.cloudflare.com)
+(gratuit, 100 000 requêtes/jour) — aviationweather.gov n'autorise pas les appels
+directs depuis un navigateur :
+
+```javascript
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const cors = {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET,OPTIONS",
+    };
+    if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+    const target = "https://aviationweather.gov/api/data/metar?" + url.search;
+    const res = await fetch(target, { headers: { "User-Agent": "ConditionsBidart/1.0" } });
+    return new Response(await res.text(), {
+      status: res.status,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  },
+};
+```
+
+Collez ensuite l'adresse du Worker (ex. `https://mon-relais.workers.dev`) dans
+Réglages → « Vent observé (METAR LFBZ) ». Une carte « Vent observé (LFBZ) »
+apparaît dans Relevés (cache 30 min, soit la fréquence des METAR).
+
+## Précision de la houle
+
+- **Hauteur affichée = hauteur totale des vagues** (houle primaire + mer de vent),
+  plus proche de ce qu'on observe à la plage ; la hauteur de la houle primaire
+  seule reste indiquée en détail.
+- **Période affichée = période de pic** (energy period), plus significative en
+  surf que la période moyenne.
+
 ## Lancer en local
 
 Le service worker exige HTTPS ou localhost :

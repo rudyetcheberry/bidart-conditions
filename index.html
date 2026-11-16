@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css?v=10">
+  <link rel="stylesheet" href="css/styles.css?v=11">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -191,6 +191,17 @@
         <button id="btn-save-point" class="primary">Enregistrer le point</button>
       </div>
       <div class="card">
+        <h2>Vent observé (METAR LFBZ — optionnel)</h2>
+        <p class="hint">Pour afficher le vent <strong>mesuré</strong> à l'aéroport de Biarritz
+          (toutes les 30 min) en plus du vent prévu, déployez le mini-relais Cloudflare Worker
+          fourni dans le README du dépôt, puis collez son adresse ici. Sans relais, seul le
+          vent prévu Open-Meteo est affiché.</p>
+        <label>URL du relais METAR
+          <input type="url" id="metar-relay" placeholder="https://mon-relais.workers.dev" autocomplete="off">
+        </label>
+        <button id="btn-save-relay" class="primary">Enregistrer le relais</button>
+      </div>
+      <div class="card">
         <h2>Quota Stormglass (marées)</h2>
         <p class="hint">Offre gratuite : 10 requêtes/jour, dont l'app n'utilise qu'une seule
           (marées mises en cache 24 h). Le vent et la houle ne consomment rien.</p>
@@ -222,6 +233,6 @@
     <button data-tab="tab-settings">Réglages</button>
   </nav>
 
-  <script type="module" src="js/app.js?v=10"></script>
+  <script type="module" src="js/app.js?v=11"></script>
 </body>
 </html>
