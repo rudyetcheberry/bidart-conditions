@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css?v=9">
+  <link rel="stylesheet" href="css/styles.css?v=10">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -32,6 +32,11 @@
 
   <main id="main">
     <div id="boot-error" class="demo-banner hidden"></div>
+    <div class="card spot-bar">
+      <label>Spot actif
+        <select id="spot-select"></select>
+      </label>
+    </div>
     <div id="demo-banner" class="demo-banner hidden">
       ⚠️ Mode démo actif : données simulées. Désactivez-le dans l'onglet Réglages.
     </div>
@@ -71,27 +76,62 @@
     <!-- ONGLET ALERTES -->
     <section id="tab-alerts" class="tab">
       <div class="card">
-        <h2>Mes critères d'alerte</h2>
-        <form id="alert-form">
+        <h2>Critères du spot actif</h2>
+        <p class="hint" id="active-criteria">—</p>
+        <p class="hint">Pour les modifier, allez dans l'onglet <strong>Spots</strong> : chaque spot a ses propres critères.</p>
+      </div>
+      <div class="card">
+        <h2>Notifications</h2>
+        <button id="btn-notify" class="primary">Activer les notifications</button>
+        <p id="notify-status" class="hint">—</p>
+      </div>
+      <div class="card">
+        <h2>Fenêtres favorables (48 h)</h2>
+        <ul id="windows-list" class="windows-list"><li class="hint">—</li></ul>
+      </div>
+    </section>
+
+    <!-- ONGLET SPOTS -->
+    <section id="tab-spots" class="tab">
+      <div class="card">
+        <h2>Mes spots de surf</h2>
+        <ul id="spots-list" class="spots-list"></ul>
+        <button id="btn-add-spot" class="primary">+ Ajouter un spot</button>
+      </div>
+      <div class="card" id="spot-edit-card" style="display:none">
+        <h2 id="spot-edit-title">Nouveau spot</h2>
+        <form id="spot-form">
           <fieldset>
-            <legend>Houle</legend>
-            <label>Hauteur minimum (m)
-              <input type="number" id="swell-min" step="0.1" min="0" max="10">
+            <legend>Spot</legend>
+            <label>Nom
+              <input type="text" id="spot-name" placeholder="Ex : Bidart — Plage Centrale">
             </label>
-            <label>Hauteur maximum (m)
-              <input type="number" id="swell-max" step="0.1" min="0" max="10">
+            <label>Latitude
+              <input type="number" id="spot-lat" step="0.0001">
             </label>
-            <label>Période minimum (s)
-              <input type="number" id="period-min" step="1" min="0" max="25">
+            <label>Longitude
+              <input type="number" id="spot-lng" step="0.0001">
             </label>
           </fieldset>
           <fieldset>
-            <legend>Vent</legend>
+            <legend>Critères favorables — Houle</legend>
+            <label>Hauteur minimum (m)
+              <input type="number" id="spot-swell-min" step="0.1" min="0" max="10">
+            </label>
+            <label>Hauteur maximum (m)
+              <input type="number" id="spot-swell-max" step="0.1" min="0" max="10">
+            </label>
+            <label>Période minimum (s)
+              <input type="number" id="spot-period-min" step="1" min="0" max="25">
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Critères favorables — Vent</legend>
             <label>Vitesse maximum (km/h)
-              <input type="number" id="wind-max" step="1" min="0" max="150">
+              <input type="number" id="spot-wind-max" step="1" min="0" max="150">
             </label>
             <label>Secteurs de vent acceptés
-              <select id="wind-dir" multiple size="6">
+              <select id="spot-wind-dir" multiple size="6">
                 <option value="any">Tous secteurs</option>
                 <option value="N">Nord</option>
                 <option value="NE">Nord-Est</option>
@@ -105,9 +145,9 @@
             </label>
           </fieldset>
           <fieldset>
-            <legend>Marée</legend>
+            <legend>Critères favorables — Marée</legend>
             <label>Prévenir avant
-              <select id="tide-lead">
+              <select id="spot-tide-lead">
                 <option value="0">Jamais</option>
                 <option value="30">30 min</option>
                 <option value="60">1 h</option>
@@ -115,23 +155,15 @@
               </select>
             </label>
             <label>États concernés
-              <select id="tide-states" multiple size="2">
+              <select id="spot-tide-states" multiple size="2">
                 <option value="high">Marée haute</option>
                 <option value="low">Marée basse</option>
               </select>
             </label>
           </fieldset>
-          <button type="submit" class="primary">Enregistrer les critères</button>
+          <button type="submit" class="primary">Enregistrer le spot</button>
+          <button type="button" id="btn-cancel-spot" style="margin-top:8px">Annuler</button>
         </form>
-      </div>
-      <div class="card">
-        <h2>Notifications</h2>
-        <button id="btn-notify" class="primary">Activer les notifications</button>
-        <p id="notify-status" class="hint">—</p>
-      </div>
-      <div class="card">
-        <h2>Fenêtres favorables (48 h)</h2>
-        <ul id="windows-list" class="windows-list"><li class="hint">—</li></ul>
       </div>
     </section>
 
@@ -186,9 +218,10 @@
     <button data-tab="tab-current" class="active">Relevés</button>
     <button data-tab="tab-forecast">Prévisions</button>
     <button data-tab="tab-alerts">Alertes</button>
+    <button data-tab="tab-spots">Spots</button>
     <button data-tab="tab-settings">Réglages</button>
   </nav>
 
-  <script type="module" src="js/app.js?v=9"></script>
+  <script type="module" src="js/app.js?v=10"></script>
 </body>
 </html>

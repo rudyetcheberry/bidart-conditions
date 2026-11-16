@@ -1,20 +1,29 @@
 # Conditions Bidart
 
 PWA mobile de relevés de vent, houle et marée sur la commune de Bidart
-(Pays basque, 43.4333° N / 1.5833° O), avec alertes entièrement configurables.
+(Pays basque, 43.4333° N / 1.5833° O), avec alertes entièrement configurables
+**et gestion multi-spots**.
 
 ## Fonctionnalités
 
+- **Multi-spots** : onglet dédié pour gérer ses spots (Bidart Plage Centrale,
+  Ilbarritz, Pavillon Royal, Guéthary-Parlementia par défaut) — chaque spot a
+  ses propres coordonnées **et ses propres critères favorables**. Sélecteur
+  rapide en tête d'application.
 - **Relevés** : houle (hauteur, période, direction), vent (vitesse, secteur, rafales),
-  température de l'eau, prochaine marée — badge vert/rouge comparé à vos critères.
+  température de l'eau, prochaine marée — badge vert/rouge comparé aux critères du spot.
+- **Graphique de houle 48 h** (SVG) : bande verte de vos critères, points verts/rouges
+  selon que toutes les conditions sont réunies.
 - **Prévisions 48 h** : tableau horaire, lignes favorables surlignées.
-- **Alertes configurables** : seuils de houle (min/max), période minimale,
+- **Alertes configurables par spot** : seuils de houle (min/max), période minimale,
   vitesse et secteurs de vent, préavis de marée (haute/basse).
-- **Notifications** locales quand les critères sont réunis ou qu'une marée approche.
+- **Notifications** locales quand les critères du spot actif sont réunis ou qu'une marée approche.
 - **Fenêtres favorables** : liste des créneaux de 48 h satisfaisant tous les critères.
 - **Mode démo** (désactivé par défaut) : données simulées avec bandeau d'avertissement
   visible, à activer dans Réglages pour tester sans connexion.
-- **Hors ligne** : service worker met l'interface en cache et sert le dernier relevé.
+- **Hors ligne** : service worker « réseau d'abord » (code toujours à jour, cache en
+  secours) et dernier relevé connu affiché en cas d'erreur.
+- **Marées partagées** : les marées sont régionales, un seul cache 24 h pour tous les spots.
 
 ## Données et quota
 

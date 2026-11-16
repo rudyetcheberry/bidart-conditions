@@ -1,4 +1,4 @@
-import { Storage } from './storage.js';
+import { Storage, DEFAULT_CRITERIA } from './storage.js';
 import { fetchMarine, fetchTideExtremes, fetchDemo } from './api.js';
 import {
   matchesCriteria,
@@ -10,22 +10,31 @@ import { renderSwellChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '9';
+const APP_VERSION = '10';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 
 let state = {
-  data: null,
-  config: Storage.getAlertConfig(),
   settings: Storage.getSettings(),
+  spots: Storage.getSpots(),
+  activeSpotId: Storage.getActiveSpotId(),
+  data: null,
+  editingSpotId: null,
 };
+
+let refreshing = false;
 
 init();
 
+function activeSpot() {
+  return state.spots.find((s) => s.id === state.activeSpotId) || state.spots[0];
+}
+
 function init() {
   setupTabs();
+  setupSpotBar();
   setupSettings();
-  setupAlertForm();
+  setupSpotsTab();
   setupNotifications();
   $('demo-mode').checked = state.settings.demoMode;
   updateDemoBanner();
@@ -65,21 +74,40 @@ function setupTabs() {
   });
 }
 
+function setupSpotBar() {
+  renderSpotSelect();
+  $('spot-select').addEventListener('change', (e) => {
+    state.activeSpotId = e.target.value;
+    Storage.saveActiveSpotId(state.activeSpotId);
+    state.data = null;
+    refresh();
+  });
+}
+
+function renderSpotSelect() {
+  const sel = $('spot-select');
+  sel.innerHTML = state.spots
+    .map((s) => `<option value="${s.id}" ${s.id === state.activeSpotId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`)
+    .join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
 function setupSettings() {
   $('api-key').value = state.settings.apiKey;
-  $('lat').value = state.settings.point.lat;
-  $('lng').value = state.settings.point.lng;
   $('btn-save-key').addEventListener('click', () => {
     state.settings.apiKey = $('api-key').value.trim();
     Storage.saveSettings(state.settings);
-    refresh();
+    refresh(true);
   });
-  $('btn-save-point').addEventListener('click', () => {
-    state.settings.point = {
-      lat: parseFloat($('lat').value) || state.settings.point.lat,
-      lng: parseFloat($('lng').value) || state.settings.point.lng,
-    };
+  $('demo-mode').addEventListener('change', (e) => {
+    state.settings.demoMode = e.target.checked;
     Storage.saveSettings(state.settings);
+    updateDemoBanner();
     refresh();
   });
   const dailyQuotaInput = $('daily-quota');
@@ -91,47 +119,19 @@ function setupSettings() {
       updateUsageLabel();
     });
   }
-  $('demo-mode').addEventListener('change', (e) => {
-    state.settings.demoMode = e.target.checked;
-    Storage.saveSettings(state.settings);
-    updateDemoBanner();
-    refresh();
-  });
 }
 
-function setupAlertForm() {
-  const c = state.config;
-  $('swell-min').value = c.swellMin;
-  $('swell-max').value = c.swellMax;
-  $('period-min').value = c.periodMin;
-  $('wind-max').value = c.windMax;
-  for (const opt of $('wind-dir').options) {
-    opt.selected = c.windDirs.includes(opt.value);
-  }
-  $('tide-lead').value = String(c.tideLeadMin);
-  for (const opt of $('tide-states').options) {
-    opt.selected = c.tideStates.includes(opt.value);
-  }
-  $('alert-form').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const selectedDirs = [...$('wind-dir').selectedOptions].map((o) => o.value);
-    state.config = {
-      swellMin: num('swell-min', c.swellMin),
-      swellMax: num('swell-max', c.swellMax),
-      periodMin: num('period-min', c.periodMin),
-      windMax: num('wind-max', c.windMax),
-      windDirs: selectedDirs.length ? selectedDirs : ['any'],
-      tideLeadMin: parseInt($('tide-lead').value, 10) || 0,
-      tideStates: [...$('tide-states').selectedOptions].map((o) => o.value),
-    };
-    Storage.saveAlertConfig(state.config);
-    render();
-  });
+function updateDemoBanner() {
+  const banner = $('demo-banner');
+  if (banner) banner.classList.toggle('hidden', !state.settings.demoMode);
 }
 
-function num(id, fallback) {
-  const v = parseFloat($(id).value);
-  return Number.isFinite(v) ? v : fallback;
+function updateUsageLabel() {
+  const el = $('usage-status');
+  if (!el) return;
+  const { dailyQuota } = state.settings;
+  const { count } = Storage.getUsage();
+  el.textContent = `Requêtes Stormglass aujourd'hui : ${count} / ${dailyQuota}`;
 }
 
 function setupNotifications() {
@@ -157,6 +157,140 @@ function updateNotifyStatus(perm) {
   $('notify-status').textContent = messages[p] || messages.default;
 }
 
+/* ---------- Onglet Spots ---------- */
+
+function setupSpotsTab() {
+  $('btn-add-spot').addEventListener('click', () => openSpotForm(null));
+  $('btn-cancel-spot').addEventListener('click', () => {
+    $('spot-edit-card').style.display = 'none';
+    state.editingSpotId = null;
+  });
+  $('spot-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    saveSpotForm();
+  });
+  renderSpotsList();
+}
+
+function renderSpotsList() {
+  const list = $('spots-list');
+  list.innerHTML = state.spots.map((s) => `
+    <li>
+      <div>
+        <div class="spot-name">${escapeHtml(s.name)}${s.id === state.activeSpotId ? ' ⭐' : ''}</div>
+        <div class="spot-coords">${s.lat.toFixed(4)}, ${s.lng.toFixed(4)} · houle ${s.config.swellMin}–${s.config.swellMax} m · vent ≤ ${s.config.windMax} km/h</div>
+      </div>
+      <div class="spot-actions">
+        ${s.id === state.activeSpotId
+          ? '<button class="use-btn active" disabled>Actif</button>'
+          : `<button class="use-btn" data-use="${s.id}">Utiliser</button>`}
+        <button data-edit="${s.id}">Modifier</button>
+        <button data-delete="${s.id}">Supprimer</button>
+      </div>
+    </li>`).join('');
+
+  list.querySelectorAll('[data-use]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.activeSpotId = btn.dataset.use;
+      Storage.saveActiveSpotId(state.activeSpotId);
+      renderSpotSelect();
+      renderSpotsList();
+      state.data = null;
+      refresh();
+    });
+  });
+  list.querySelectorAll('[data-edit]').forEach((btn) => {
+    btn.addEventListener('click', () => openSpotForm(btn.dataset.edit));
+  });
+  list.querySelectorAll('[data-delete]').forEach((btn) => {
+    btn.addEventListener('click', () => deleteSpot(btn.dataset.delete));
+  });
+}
+
+function openSpotForm(spotId) {
+  state.editingSpotId = spotId;
+  const spot = spotId ? state.spots.find((s) => s.id === spotId) : null;
+  const c = spot ? spot.config : DEFAULT_CRITERIA;
+  $('spot-edit-title').textContent = spot ? `Modifier : ${spot.name}` : 'Nouveau spot';
+  $('spot-name').value = spot ? spot.name : '';
+  $('spot-lat').value = spot ? spot.lat : 43.4333;
+  $('spot-lng').value = spot ? spot.lng : -1.5833;
+  $('spot-swell-min').value = c.swellMin;
+  $('spot-swell-max').value = c.swellMax;
+  $('spot-period-min').value = c.periodMin;
+  $('spot-wind-max').value = c.windMax;
+  for (const opt of $('spot-wind-dir').options) {
+    opt.selected = c.windDirs.includes(opt.value);
+  }
+  $('spot-tide-lead').value = String(c.tideLeadMin);
+  for (const opt of $('spot-tide-states').options) {
+    opt.selected = c.tideStates.includes(opt.value);
+  }
+  $('spot-edit-card').style.display = 'block';
+  $('spot-edit-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function saveSpotForm() {
+  const name = $('spot-name').value.trim() || 'Spot sans nom';
+  const lat = parseFloat($('spot-lat').value);
+  const lng = parseFloat($('spot-lng').value);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    alert('Latitude et longitude doivent être des nombres.');
+    return;
+  }
+  const selectedDirs = [...$('spot-wind-dir').selectedOptions].map((o) => o.value);
+  const config = {
+    swellMin: num('spot-swell-min', DEFAULT_CRITERIA.swellMin),
+    swellMax: num('spot-swell-max', DEFAULT_CRITERIA.swellMax),
+    periodMin: num('spot-period-min', DEFAULT_CRITERIA.periodMin),
+    windMax: num('spot-wind-max', DEFAULT_CRITERIA.windMax),
+    windDirs: selectedDirs.length ? selectedDirs : ['any'],
+    tideLeadMin: parseInt($('spot-tide-lead').value, 10) || 0,
+    tideStates: [...$('spot-tide-states').selectedOptions].map((o) => o.value),
+  };
+
+  if (state.editingSpotId) {
+    const spot = state.spots.find((s) => s.id === state.editingSpotId);
+    spot.name = name;
+    spot.lat = lat;
+    spot.lng = lng;
+    spot.config = config;
+  } else {
+    const id = 'spot-' + Date.now().toString(36);
+    state.spots.push({ id, name, lat, lng, config });
+    state.activeSpotId = id;
+    Storage.saveActiveSpotId(id);
+    renderSpotSelect();
+  }
+  Storage.saveSpots(state.spots);
+  state.editingSpotId = null;
+  $('spot-edit-card').style.display = 'none';
+  renderSpotsList();
+  state.data = null;
+  refresh();
+}
+
+function deleteSpot(spotId) {
+  if (state.spots.length <= 1) {
+    alert('Impossible de supprimer le dernier spot.');
+    return;
+  }
+  const spot = state.spots.find((s) => s.id === spotId);
+  if (!confirm(`Supprimer le spot « ${spot.name} » ?`)) return;
+  state.spots = state.spots.filter((s) => s.id !== spotId);
+  Storage.saveSpots(state.spots);
+  if (state.activeSpotId === spotId) {
+    state.activeSpotId = state.spots[0].id;
+    Storage.saveActiveSpotId(state.activeSpotId);
+    renderSpotSelect();
+    state.data = null;
+    refresh();
+  }
+  renderSpotsList();
+}
+
+/* ---------- Données ---------- */
+
 function reviveData(data) {
   return {
     ...data,
@@ -170,93 +304,109 @@ function setUpdateLabel(text) {
   $('last-update').textContent = text;
 }
 
-function updateDemoBanner() {
-  const banner = $('demo-banner');
-  if (banner) banner.classList.toggle('hidden', !state.settings.demoMode);
-}
-
-function updateUsageLabel() {
-  const el = $('usage-status');
-  if (!el) return;
-  const { dailyQuota } = state.settings;
-  const { count } = Storage.getUsage();
-  el.textContent = `Requêtes Stormglass aujourd'hui : ${count} / ${dailyQuota}`;
+function updateActiveCriteriaLabel() {
+  const spot = activeSpot();
+  const c = spot.config;
+  const dirs = c.windDirs.includes('any') || c.windDirs.length === 0
+    ? 'tous secteurs'
+    : c.windDirs.join(', ');
+  $('active-criteria').textContent =
+    `${spot.name} · houle ${c.swellMin}–${c.swellMax} m · période ≥ ${c.periodMin} s · vent ≤ ${c.windMax} km/h (${dirs})`;
 }
 
 async function refresh(force = false) {
+  if (refreshing) return;
+  refreshing = true;
   updateUsageLabel();
-  if (state.settings.demoMode) {
-    const btn = $('btn-refresh');
-    btn.disabled = true;
-    try {
+  updateActiveCriteriaLabel();
+  const btn = $('btn-refresh');
+  btn.disabled = true;
+
+  try {
+    if (state.settings.demoMode) {
       state.data = await fetchDemo();
       state.data.source = 'demo';
       setUpdateLabel(`Mis à jour à ${state.data.fetchedAt.toLocaleTimeString('fr-FR')} (mode démo)`);
       render();
-    } finally {
-      btn.disabled = false;
+      return;
     }
-    return;
-  }
 
-  const rawCache = Storage.getLastData();
-  const cached = rawCache && rawCache.source === 'live' ? reviveData(rawCache) : null;
-  const now = Date.now();
-  const marineFresh = cached && now - cached.fetchedAt.getTime() < MARINE_TTL;
-  const tidesFresh = cached
-    && now - cached.fetchedAt.getTime() < TIDE_TTL
-    && cached.tides.some((t) => t.time > new Date());
-  const tideAge = cached ? now - cached.fetchedAt.getTime() : Infinity;
+    const spot = activeSpot();
+    const rawCache = Storage.getLastData(spot.id);
+    const cached = rawCache && rawCache.source === 'live' ? reviveData(rawCache) : null;
+    const now = Date.now();
+    const marineFresh = cached && now - cached.fetchedAt.getTime() < MARINE_TTL;
 
-  if (!force && marineFresh && tidesFresh) {
-    state.data = cached;
-    const nextMs = cached.fetchedAt.getTime() + MARINE_TTL - now;
-    const minutes = Math.max(1, Math.round(nextMs / 60000));
-    setUpdateLabel(`Données de ${cached.fetchedAt.toLocaleTimeString('fr-FR')} · actualisation dans ~${minutes} min`);
+    const rawTides = Storage.getTides();
+    const tides = rawTides
+      ? rawTides.tides.map((t) => ({ ...t, time: new Date(t.time) }))
+      : [];
+    const tidesUsable = tides.length > 0
+      && tides.some((t) => t.time > new Date())
+      && now - new Date(rawTides.fetchedAt).getTime() < TIDE_TTL;
+
+    if (!force && cached && marineFresh && tidesUsable) {
+      state.data = { ...cached, tides };
+      const nextMs = cached.fetchedAt.getTime() + MARINE_TTL - now;
+      const minutes = Math.max(1, Math.round(nextMs / 60000));
+      setUpdateLabel(`Données de ${cached.fetchedAt.toLocaleTimeString('fr-FR')} · actualisation dans ~${minutes} min`);
+      render();
+      return;
+    }
+
+    const errors = [];
+    const data = cached ? reviveData(rawCache) : { marine: [], tides, fetchedAt: new Date(0) };
+
+    if (force || !marineFresh) {
+      try {
+        data.marine = await fetchMarine(spot);
+        data.fetchedAt = new Date();
+      } catch (err) {
+        errors.push(`vent/houle : ${err.message}`);
+      }
+    }
+
+    const tidesStillUsable = data.tides.length > 0
+      && data.tides.some((t) => t.time > new Date())
+      && now - new Date(rawTides ? rawTides.fetchedAt : 0).getTime() < TIDE_TTL;
+    if (!tidesStillUsable && (force ? tideRetryAllowed() : true)) {
+      try {
+        const fetched = await fetchTideExtremes(spot);
+        data.tides = fetched;
+        Storage.saveTides({ tides: fetched, fetchedAt: new Date().toISOString() });
+      } catch (err) {
+        errors.push(`marées : ${err.message}`);
+      }
+    }
+
+    if (data.marine.length === 0) {
+      $('current-cards').innerHTML = `<p class="hint">${errors.join(' · ') || 'Aucune donnée.'}</p>`;
+      setUpdateLabel('Erreur de chargement');
+      updateUsageLabel();
+      return;
+    }
+
+    data.source = 'live';
+    state.data = data;
+    Storage.saveLastData(spot.id, data);
+    const parts = [errors.length ? 'Données du' : 'Mis à jour à', data.fetchedAt.toLocaleTimeString('fr-FR')];
+    if (errors.length) parts.push(errors.join(' · '));
+    setUpdateLabel(parts.join(' '));
     render();
-    return;
-  }
-
-  const btn = $('btn-refresh');
-  btn.disabled = true;
-  const data = cached ? reviveData(rawCache) : { marine: [], tides: [], fetchedAt: new Date(0) };
-  const errors = [];
-
-  if (force || !marineFresh) {
-    try {
-      data.marine = await fetchMarine(state.settings.point);
-      data.fetchedAt = new Date();
-    } catch (err) {
-      errors.push(`vent/houle : ${err.message}`);
-    }
-  }
-  const tidesUsable = data.tides.length > 0 && data.tides.some((t) => t.time > new Date());
-  if (force ? (!tidesUsable || tideAge > 60 * 60 * 1000) : !tidesFresh) {
-    try {
-      data.tides = await fetchTideExtremes(state.settings.point);
-      data.fetchedAt = new Date();
-    } catch (err) {
-      errors.push(`marées : ${err.message}`);
-    }
-  }
-  btn.disabled = false;
-
-  if (data.marine.length === 0) {
-    $('current-cards').innerHTML = `<p class="hint">${errors.join(' · ') || 'Aucune donnée.'}</p>`;
-    setUpdateLabel('Erreur de chargement');
     updateUsageLabel();
-    return;
+  } finally {
+    refreshing = false;
+    btn.disabled = false;
   }
-
-  data.source = 'live';
-  state.data = data;
-  Storage.saveLastData(data);
-  const parts = [errors.length ? 'Données du' : 'Mis à jour à', data.fetchedAt.toLocaleTimeString('fr-FR')];
-  if (errors.length) parts.push(errors.join(' · '));
-  setUpdateLabel(parts.join(' '));
-  render();
-  updateUsageLabel();
 }
+
+function tideRetryAllowed() {
+  const rawTides = Storage.getTides();
+  if (!rawTides) return true;
+  return Date.now() - new Date(rawTides.fetchedAt).getTime() > 60 * 60 * 1000;
+}
+
+/* ---------- Rendu ---------- */
 
 function render() {
   if (!state.data) return;
@@ -268,6 +418,7 @@ function render() {
 }
 
 function renderCurrent() {
+  const spot = activeSpot();
   const now = new Date();
   let hour = state.data.marine[0];
   let bestDelta = Infinity;
@@ -275,7 +426,7 @@ function renderCurrent() {
     const d = Math.abs(h.time - now);
     if (d < bestDelta) { bestDelta = d; hour = h; }
   }
-  const { ok, checks } = matchesCriteria(hour, state.config);
+  const { ok, checks } = matchesCriteria(hour, spot.config);
   const nextTide = state.data.tides.find((t) => t.time > now);
   const cards = [
     metric('Houle', `${fmt(hour.swellHeight, 1)} m`,
@@ -290,7 +441,7 @@ function renderCurrent() {
       : '—', '', null),
   ];
   const banner = `<div class="metric-card" style="grid-column: 1 / -1;">
-    <span class="label">Conditions actuelles vs vos critères</span>
+    <span class="label">Conditions à ${escapeHtml(spot.name)} vs vos critères</span>
     <div class="value">${ok ? 'Favorables' : 'Non favorables'}</div>
     <span class="badge ${ok ? 'good' : 'bad'}">${ok ? 'Alerte justifiée' : "Pas d'alerte"}</span>
   </div>`;
@@ -325,13 +476,13 @@ function renderTides() {
 }
 
 function renderForecast() {
-  renderSwellChart($('swell-chart'), state.data.marine, state.config);
+  renderSwellChart($('swell-chart'), state.data.marine, activeSpot().config);
   const tbody = $('forecast-table').querySelector('tbody');
   tbody.innerHTML = state.data.marine
     .filter((_, i) => i % 2 === 0)
     .slice(0, 24)
     .map((h) => {
-      const { ok } = matchesCriteria(h, state.config);
+      const { ok } = matchesCriteria(h, activeSpot().config);
       const nextTide = state.data.tides.find((t) => Math.abs(t.time - h.time) < 30 * 60 * 1000);
       return `<tr class="${ok ? 'favorable' : ''}">
         <td>${h.time.toLocaleString('fr-FR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</td>
@@ -345,7 +496,7 @@ function renderForecast() {
 }
 
 function renderWindows() {
-  const windows = findFavorableWindows(state.data.marine, state.config);
+  const windows = findFavorableWindows(state.data.marine, activeSpot().config);
   $('windows-list').innerHTML = windows.length
     ? windows.map((w) => `<li>
         <span>${rangeLabel(w.start, w.end)}</span>
@@ -361,25 +512,26 @@ function rangeLabel(start, end) {
 
 function checkAlerts() {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  const spot = activeSpot();
   const now = new Date();
   const current = state.data.marine.find((h) => Math.abs(h.time - now) < 60 * 60 * 1000);
   const bodyParts = [];
   if (current) {
-    const { ok } = matchesCriteria(current, state.config);
+    const { ok } = matchesCriteria(current, spot.config);
     if (ok) {
       bodyParts.push(
-        `Conditions favorables maintenant : houle ${fmt(current.swellHeight, 1)} m, ` +
+        `${spot.name} : conditions favorables — houle ${fmt(current.swellHeight, 1)} m, ` +
         `vent ${fmt(current.windSpeed, 0)} km/h (${degToDir(current.windDirection)}).`
       );
     }
   }
-  for (const t of upcomingTideAlerts(state.data.tides, state.config, now)) {
+  for (const t of upcomingTideAlerts(state.data.tides, spot.config, now)) {
     bodyParts.push(
       `${t.type === 'high' ? 'Marée haute' : 'Marée basse'} dans ${t.minutesAway} min (${fmt(t.height, 1)} m).`
     );
   }
   if (bodyParts.length === 0) return;
-  const key = `bidart-conditions.notified.${now.toISOString().slice(0, 13)}`;
+  const key = `bidart-conditions.notified.${spot.id}.${now.toISOString().slice(0, 13)}`;
   if (localStorage.getItem(key)) return;
   localStorage.setItem(key, '1');
   navigator.serviceWorker.ready.then((reg) => {
@@ -389,6 +541,11 @@ function checkAlerts() {
       tag: 'bidart-conditions',
     });
   });
+}
+
+function num(id, fallback) {
+  const v = parseFloat($(id).value);
+  return Number.isFinite(v) ? v : fallback;
 }
 
 function fmt(v, digits) {

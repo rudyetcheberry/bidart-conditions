@@ -103,6 +103,30 @@ main { padding: 12px; }
 .badge.warn { background: var(--warn); }
 .badge.bad  { background: var(--bad); }
 
+.spot-bar label { margin-bottom: 0; }
+
+.spots-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.spots-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e6edf1;
+}
+.spots-list li:last-child { border-bottom: none; }
+.spots-list .spot-name { font-weight: 600; font-size: 0.95rem; }
+.spots-list .spot-coords { font-size: 0.75rem; color: var(--muted); }
+.spot-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.spot-actions button {
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  background: #eef4f8;
+  color: var(--primary);
+  font-weight: 600;
+}
+.spot-actions button.use-btn.active { background: var(--good); color: #fff; }
+
 .tide-list, .windows-list { list-style: none; margin: 0; padding: 0; }
 .tide-list li, .windows-list li {
   display: flex;
