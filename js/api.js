@@ -91,7 +91,7 @@ export async function fetchTideExtremes({ lat, lng }, hours = 48) {
 }
 
 export async function fetchMetar(relayUrl) {
-  const url = relayUrl + (relayUrl.includes('?') ? '&' : '?') + 'ids=LFBZ';
+  const url = relayUrl + (relayUrl.includes('?') ? '&' : '?') + 'ids=LFBZ&format=json';
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Erreur relais METAR ${res.status}`);
   const arr = await res.json();

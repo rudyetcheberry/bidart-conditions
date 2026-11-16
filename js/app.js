@@ -10,7 +10,7 @@ import { renderSwellChart } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '11';
+const APP_VERSION = '12';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
