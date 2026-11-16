@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css?v=19">
+  <link rel="stylesheet" href="css/styles.css?v=20">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -184,16 +184,6 @@
         <button id="btn-save-key" class="primary">Enregistrer la clé</button>
       </div>
       <div class="card">
-        <h2>Point de mesure</h2>
-        <label>Latitude
-          <input type="number" id="lat" step="0.0001">
-        </label>
-        <label>Longitude
-          <input type="number" id="lng" step="0.0001">
-        </label>
-        <button id="btn-save-point" class="primary">Enregistrer le point</button>
-      </div>
-      <div class="card">
         <h2>Vent observé (METAR LFBZ — optionnel)</h2>
         <p class="hint">Pour afficher le vent <strong>mesuré</strong> à l'aéroport de Biarritz
           (toutes les 30 min) en plus du vent prévu, déployez le mini-relais Cloudflare Worker
@@ -228,6 +218,6 @@
     </section>
   </main>
 
-  <script type="module" src="js/app.js?v=19"></script>
+  <script type="module" src="js/app.js?v=20"></script>
 </body>
 </html>
