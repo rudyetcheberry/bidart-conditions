@@ -7,10 +7,11 @@ import {
   degToDir,
 } from './alerts.js';
 import { renderSwellChart, renderTideChart, tideCoefficient } from './chart.js';
+import { fetchHistoricalConditions } from './api.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '24';
+const APP_VERSION = '25';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -25,6 +26,9 @@ let state = {
   editingSpotId: null,
   sessions: Storage.getSessions(),
 };
+
+let sessionSnapshotCache = null; // { when: ms, snapshot } — conditions chargées pour la date du formulaire
+let analysisCriteria = null; // critères déduits des meilleures sessions
 
 let refreshing = false;
 
@@ -477,6 +481,9 @@ function setupSessionsTab() {
     dateInput.value = d.toISOString().slice(0, 16);
   };
   setNow();
+  // Le changement de date recharge les conditions (fenêtre 48 h ou archives Open-Meteo).
+  dateInput.addEventListener('change', loadSessionConditions);
+  spotSel.addEventListener('change', loadSessionConditions);
   $('btn-save-session').addEventListener('click', () => {
     const spot = state.spots.find((s) => s.id === spotSel.value) || activeSpot();
     const when = dateInput.value ? new Date(dateInput.value) : new Date();
@@ -488,7 +495,7 @@ function setupSessionsTab() {
       spotName: spot.name,
       rating: ratingVal ? parseInt(ratingVal, 10) : null,
       notes: $('session-notes').value.trim(),
-      conditions: currentConditionsSnapshot(when),
+      conditions: snapshotFor(when),
     };
     state.sessions = [session].concat(state.sessions);
     Storage.saveSessions(state.sessions);
@@ -497,10 +504,75 @@ function setupSessionsTab() {
     setNow();
     renderSessionsList();
   });
+  $('btn-apply-analysis').addEventListener('click', () => {
+    if (!analysisCriteria) return;
+    const spot = activeSpot();
+    const cfg = spot.config;
+    if (analysisCriteria.swellMin !== null && analysisCriteria.swellMin !== undefined) cfg.swellMin = analysisCriteria.swellMin;
+    if (analysisCriteria.swellMax !== null && analysisCriteria.swellMax !== undefined) cfg.swellMax = analysisCriteria.swellMax;
+    if (analysisCriteria.periodMin) cfg.periodMin = analysisCriteria.periodMin;
+    if (analysisCriteria.windMax) cfg.windMax = analysisCriteria.windMax;
+    Storage.saveSpots(state.spots);
+    renderSpotsList();
+    const btn = $('btn-apply-analysis');
+    btn.textContent = 'Appliqué à ' + spot.name + ' ✓';
+  });
   renderSessionsList();
 }
 
-function currentConditionsSnapshot(when) {
+async function loadSessionConditions() {
+  const dateInput = $('session-date');
+  if (!dateInput || !dateInput.value) return;
+  const when = new Date(dateInput.value);
+  const near = syncSnapshotFromMarine(when);
+  if (near) {
+    sessionSnapshotCache = { when: when.getTime(), snapshot: near };
+    updateSessionConditionsHint(when);
+    return;
+  }
+  const el = $('session-conditions');
+  el.textContent = 'Recherche des conditions du ' + when.toLocaleString('fr-FR') + '…';
+  try {
+    const spot = state.spots.find((s) => s.id === $('session-spot').value) || activeSpot();
+    const raw = await fetchHistoricalConditions({ lat: spot.lat, lng: spot.lng }, when);
+    const snapshot = historicalToSnapshot(raw);
+    sessionSnapshotCache = { when: when.getTime(), snapshot: snapshot };
+    el.textContent = 'Conditions du ' + when.toLocaleString('fr-FR') + ' : '
+      + (snapshot ? snapshot.text : 'indisponibles pour cette heure');
+  } catch (err) {
+    sessionSnapshotCache = null;
+    el.textContent = 'Conditions indisponibles pour cette date (archive trop récente — ~5 jours de délai — ou erreur réseau).';
+  }
+}
+
+function snapshotFor(when) {
+  const near = syncSnapshotFromMarine(when);
+  if (near) return near;
+  if (sessionSnapshotCache && Math.abs(sessionSnapshotCache.when - when.getTime()) < 2 * 3600 * 1000) {
+    return sessionSnapshotCache.snapshot;
+  }
+  return null;
+}
+
+function historicalToSnapshot(raw) {
+  if (!raw) return null;
+  const parts = [];
+  if (typeof raw.swellHeight === 'number') parts.push('houle ' + fmt(raw.swellHeight, 1) + ' m');
+  if (typeof raw.swellPeriod === 'number') parts.push(fmt(raw.swellPeriod, 0) + ' s');
+  if (typeof raw.windSpeed === 'number') {
+    parts.push('vent ' + fmt(raw.windSpeed, 0) + ' km/h ' + degToDir(raw.windDirection));
+  }
+  if (typeof raw.gust === 'number') parts.push('rafales ' + fmt(raw.gust, 0));
+  if (parts.length === 0) return null;
+  return {
+    text: parts.join(' · '),
+    swellHeight: typeof raw.swellHeight === 'number' ? raw.swellHeight : null,
+    swellPeriod: typeof raw.swellPeriod === 'number' ? raw.swellPeriod : null,
+    windSpeed: typeof raw.windSpeed === 'number' ? raw.windSpeed : null,
+  };
+}
+
+function syncSnapshotFromMarine(when) {
   if (!state.data || !state.data.marine || state.data.marine.length === 0) return null;
   let hour = state.data.marine[0];
   let best = Infinity;
@@ -511,22 +583,30 @@ function currentConditionsSnapshot(when) {
   if (best > 3 * 3600 * 1000) return null;
   const metar = freshMetar();
   const observed = metar && typeof metar.windSpeed === 'number';
+  const windSpeed = observed ? metar.windSpeed : hour.windSpeed;
+  const windDirection = observed ? metar.windDirection : hour.windDirection;
   const parts = [
-    `houle ${fmt(hour.swellHeight, 1)} m`,
-    `${fmt(hour.swellPeriod, 0)} s`,
-    `vent ${fmt(observed ? metar.windSpeed : hour.windSpeed, 0)} km/h ${degToDir(observed ? metar.windDirection : hour.windDirection)}`,
+    'houle ' + fmt(hour.swellHeight, 1) + ' m',
+    fmt(hour.swellPeriod, 0) + ' s',
+    'vent ' + fmt(windSpeed, 0) + ' km/h ' + degToDir(windDirection),
   ];
   const gust = observed && metar.gust ? metar.gust : hour.gust;
-  if (gust) parts.push(`rafales ${fmt(gust, 0)}`);
+  if (gust) parts.push('rafales ' + fmt(gust, 0));
   const tide = state.data.tides.find((t) => Math.abs(t.time - when) < 6 * 3600 * 1000);
   if (tide) parts.push(tide.type === 'high' ? 'près marée haute' : 'près marée basse');
-  return { text: parts.join(' · ') };
+  return {
+    text: parts.join(' · '),
+    swellHeight: typeof hour.swellHeight === 'number' ? hour.swellHeight : null,
+    swellPeriod: typeof hour.swellPeriod === 'number' ? hour.swellPeriod : null,
+    windSpeed: typeof windSpeed === 'number' ? windSpeed : null,
+  };
 }
 
-function updateSessionConditionsHint() {
+function updateSessionConditionsHint(when) {
   const el = $('session-conditions');
   if (!el) return;
-  const snap = currentConditionsSnapshot(new Date());
+  const w = when || new Date();
+  const snap = syncSnapshotFromMarine(w);
   el.textContent = 'Conditions actuelles : ' + (snap ? snap.text : 'indisponibles');
 }
 
@@ -569,6 +649,43 @@ function renderSessionsList() {
       renderSessionsList();
     });
   });
+  renderSessionsAnalysis();
+}
+
+// Déduit les conditions idéales des meilleures sessions (★★★★ et ★★★★★).
+function renderSessionsAnalysis() {
+  const el = $('sessions-analysis');
+  const btn = $('btn-apply-analysis');
+  if (!el) return;
+  const good = (state.sessions || []).filter((s) => s.rating && s.rating >= 4
+    && s.conditions && typeof s.conditions.swellHeight === 'number'
+    && typeof s.conditions.windSpeed === 'number');
+  if (good.length < 2) {
+    analysisCriteria = null;
+    el.textContent = 'Enregistrez au moins 2 sessions notées ★★★★ ou ★★★★★ : l\'app en déduira vos conditions idéales pour le spot actif.';
+    if (btn) btn.classList.add('hidden');
+    return;
+  }
+  const median = (arr) => (arr.length ? arr[Math.floor(arr.length / 2)] : null);
+  const swell = good.map((s) => s.conditions.swellHeight).sort((a, b) => a - b);
+  const period = good.map((s) => s.conditions.swellPeriod).filter((v) => typeof v === 'number').sort((a, b) => a - b);
+  const wind = good.map((s) => s.conditions.windSpeed).sort((a, b) => a - b);
+  analysisCriteria = {
+    swellMin: Math.round(swell[0] * 10) / 10,
+    swellMax: Math.round(swell[swell.length - 1] * 10) / 10,
+    periodMin: period.length ? Math.round(median(period)) : null,
+    windMax: wind.length ? Math.round(wind[wind.length - 1] + 2) : null,
+  };
+  let html = 'D\'après vos ' + good.length + ' meilleures sessions : houle <strong>'
+    + analysisCriteria.swellMin + '–' + analysisCriteria.swellMax + ' m</strong>';
+  if (analysisCriteria.periodMin) html += ' · période ≥ <strong>' + analysisCriteria.periodMin + ' s</strong>';
+  if (analysisCriteria.windMax) html += ' · vent ≤ <strong>' + analysisCriteria.windMax + ' km/h</strong>';
+  html += '.';
+  el.innerHTML = html;
+  if (btn) {
+    btn.classList.remove('hidden');
+    btn.textContent = 'Appliquer au spot actif (' + activeSpot().name + ')';
+  }
 }
 
 function renderCurrent() {

@@ -112,6 +112,62 @@ export async function fetchMetar(relayUrl) {
   };
 }
 
+// Conditions historiques (sessions passées) : houle via l'archive Marine d'Open-Meteo,
+// vent via l'archive ERA5. Renvoie les valeurs de l'heure la plus proche de `when`.
+export async function fetchHistoricalConditions({ lat, lng }, when) {
+  const f = (x) => x.toISOString().slice(0, 10);
+  const d0 = f(new Date(when.getTime() - 24 * 3600 * 1000));
+  const d1 = f(new Date(when.getTime() + 24 * 3600 * 1000));
+  const marineUrl = 'https://marine-api.open-meteo.com/v1/marine?latitude=' + lat + '&longitude=' + lng +
+    '&hourly=wave_height,swell_wave_height,swell_wave_peak_period,sea_surface_temperature' +
+    '&start_date=' + d0 + '&end_date=' + d1 + '&timezone=auto';
+  const windUrl = 'https://archive-api.open-meteo.com/v1/archive?latitude=' + lat + '&longitude=' + lng +
+    '&hourly=wind_speed_10m,wind_gusts_10m,wind_direction_10m' +
+    '&start_date=' + d0 + '&end_date=' + d1 + '&wind_speed_unit=kmh&timezone=auto';
+  const safe = (p) => p.catch(() => null);
+  const marine = await safe(fetch(marineUrl).then((r) => { if (!r.ok) throw new Error('marine ' + r.status); return r.json(); }));
+  const wind = await safe(fetch(windUrl).then((r) => { if (!r.ok) throw new Error('archive ' + r.status); return r.json(); }));
+  if (!marine && !wind) throw new Error('archives indisponibles');
+
+  const nearest = (times) => {
+    if (!times || !times.length) return -1;
+    let idx = -1;
+    let best = Infinity;
+    for (let i = 0; i < times.length; i++) {
+      const d = Math.abs(new Date(times[i]).getTime() - when.getTime());
+      if (d < best) { best = d; idx = i; }
+    }
+    return best < 90 * 60 * 1000 ? idx : -1;
+  };
+  const pick2 = (a, b, i) => {
+    if (a && typeof a[i] === 'number') return a[i];
+    if (b && typeof b[i] === 'number') return b[i];
+    return null;
+  };
+
+  const out = {};
+  if (marine && marine.hourly) {
+    const i = nearest(marine.hourly.time);
+    if (i >= 0) {
+      out.swellHeight = pick2(marine.hourly.wave_height, marine.hourly.swell_wave_height, i);
+      out.swellPeriod = pick2(marine.hourly.swell_wave_peak_period, null, i);
+      out.waterTemperature = pick2(marine.hourly.sea_surface_temperature, null, i);
+    }
+  }
+  if (wind && wind.hourly) {
+    const i = nearest(wind.hourly.time);
+    if (i >= 0) {
+      out.windSpeed = pick2(wind.hourly.wind_speed_10m, null, i);
+      out.gust = pick2(wind.hourly.wind_gusts_10m, null, i);
+      out.windDirection = pick2(wind.hourly.wind_direction_10m, null, i);
+    }
+  }
+  if (out.swellHeight === undefined && out.windSpeed === undefined) {
+    throw new Error('aucune donnée pour cette date');
+  }
+  return out;
+}
+
 export async function fetchDemo(hours = 48) {
   const now = new Date();
   now.setMinutes(0, 0, 0);
