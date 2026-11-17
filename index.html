@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css?v=22">
+  <link rel="stylesheet" href="css/styles.css?v=23">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -58,7 +58,7 @@
     <section id="tab-forecast" class="tab">
       <div class="card">
         <h2>Houle — 48 h</h2>
-        <p class="hint">Bande verte : votre plage de houle idéale. Points verts : conditions favorables (houle + période + vent).</p>
+        <p class="hint">Bande verte : plage de houle idéale. <span style="color:#0e7fb0">▬ houle (m, à gauche)</span> · <span style="color:#d0782a">▬ vent (km/h, à droite)</span> · pointillés verts : vent max. Points verts : conditions favorables.</p>
         <div id="swell-chart"></div>
       </div>
       <div class="card">
@@ -218,6 +218,6 @@
     </section>
   </main>
 
-  <script type="module" src="js/app.js?v=22"></script>
+  <script type="module" src="js/app.js?v=23"></script>
 </body>
 </html>

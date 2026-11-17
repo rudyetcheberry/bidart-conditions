@@ -41,6 +41,29 @@ export function renderSwellChart(container, marine, config) {
   const x = (t) => PAD_L + ((t - t0) / (t1 - t0)) * (W - PAD_L - PAD_R);
   const y = (v) => PAD_T + (1 - v / maxV) * (H - PAD_T - PAD_B);
 
+  // --- Vent (échelle de droite, en orange) ---
+  const windPts = pts.filter((p) => typeof p.windSpeed === 'number');
+  const hasWind = windPts.length >= 2;
+  const maxWind = hasWind ? Math.max(config.windMax, ...windPts.map((p) => p.windSpeed)) * 1.15 : 0;
+  const yw = (v) => PAD_T + (1 - v / maxWind) * (H - PAD_T - PAD_B);
+  const windLine = hasWind
+    ? windPts.map((p, i) => `${i ? 'L' : 'M'}${x(p.time.getTime()).toFixed(1)},${yw(p.windSpeed).toFixed(1)}`).join(' ')
+    : '';
+  // Axe de droite : graduations du vent
+  let windAxis = '';
+  if (hasWind) {
+    const stepW = maxWind > 60 ? 20 : maxWind > 30 ? 10 : 5;
+    for (let v = 0; v <= maxWind; v += stepW) {
+      windAxis += `<line x1="${W - PAD_R - 4}" y1="${yw(v).toFixed(1)}" x2="${W - PAD_R}" y2="${yw(v).toFixed(1)}" stroke="#d0782a" stroke-width="1"/>`
+        + `<text x="${W - PAD_R + 3}" y="${(yw(v) + 3).toFixed(1)}" text-anchor="start" font-size="9" fill="#d0782a">${v}</text>`;
+    }
+    // Limite de vent max du spot (repère vert pointillé sur l'échelle du vent)
+    if (config.windMax < maxWind) {
+      windAxis += `<line x1="${PAD_L}" y1="${yw(config.windMax).toFixed(1)}" x2="${W - PAD_R}" y2="${yw(config.windMax).toFixed(1)}" stroke="#1d8a4e" stroke-width="1" stroke-dasharray="3 4"/>`
+        + `<text x="${W - PAD_R - 6}" y="${(yw(config.windMax) - 4).toFixed(1)}" text-anchor="end" font-size="9" fill="#1d8a4e">vent max</text>`;
+    }
+  }
+
   const line = pts
     .map((p, i) => `${i ? 'L' : 'M'}${x(p.time.getTime()).toFixed(1)},${y(p.swellHeight).toFixed(1)}`)
     .join(' ');
@@ -71,14 +94,16 @@ export function renderSwellChart(container, marine, config) {
   const dots = pts.map((p) => {
     const { ok } = matchesCriteria(p, config);
     const period = typeof p.swellPeriod === 'number' ? `${p.swellPeriod} s` : '—';
+    const wind = typeof p.windSpeed === 'number' ? ` · vent ${p.windSpeed} km/h` : '';
     return `<circle cx="${x(p.time.getTime()).toFixed(1)}" cy="${y(p.swellHeight).toFixed(1)}" r="3" fill="${ok ? '#1d8a4e' : '#b03a3a'}">`
-      + `<title>${p.time.toLocaleString('fr-FR')} — ${p.swellHeight.toFixed(1)} m · ${period}</title></circle>`;
+      + `<title>${p.time.toLocaleString('fr-FR')} — ${p.swellHeight.toFixed(1)} m · ${period}${wind}</title></circle>`;
   }).join('');
 
-  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Courbe de houle sur 48 heures">
-    ${band}${grid}${xlabels}
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Courbes de houle et de vent sur 48 heures">
+    ${band}${grid}${xlabels}${windAxis}
     <path d="${area}" fill="#0e7fb0" opacity="0.15"/>
     <path d="${line}" fill="none" stroke="#0e7fb0" stroke-width="2.5" stroke-linejoin="round"/>
+    ${hasWind ? `<path d="${windLine}" fill="none" stroke="#d0782a" stroke-width="2" stroke-dasharray="6 3" stroke-linejoin="round"/>` : ''}
     ${dots}
   </svg>`;
 }
