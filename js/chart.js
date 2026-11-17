@@ -1,5 +1,13 @@
 import { matchesCriteria } from './alerts.js';
 
+// Couleurs adaptées au thème (mode nuit = classe .night sur <body>).
+function themeColors() {
+  const night = typeof document !== 'undefined' && document.body && document.body.classList.contains('night');
+  return night
+    ? { grid: '#25455a', label: '#8fa8b5', mark: '#c8d8e0', area: '#3ba7db', line: '#3ba7db' }
+    : { grid: '#e6edf1', label: '#6b7c86', mark: '#3d4f59', area: '#0e7fb0', line: '#0e7fb0' };
+}
+
 const W = 660;
 const H = 240;
 const PAD_L = 42;
@@ -29,6 +37,7 @@ export function tideCoefficient(tides, idx) {
 
 export function renderSwellChart(container, marine, config) {
   if (!container) return;
+  const C = themeColors();
   const pts = marine.filter((h) => typeof h.swellHeight === 'number');
   if (pts.length < 2) {
     container.innerHTML = '<p class="hint">Données de houle indisponibles.</p>';
@@ -73,8 +82,8 @@ export function renderSwellChart(container, marine, config) {
   const step = maxV > 6 ? 2 : maxV > 3 ? 1 : 0.5;
   let grid = '';
   for (let v = 0; v <= maxV; v += step) {
-    grid += `<line x1="${PAD_L}" y1="${y(v).toFixed(1)}" x2="${W - PAD_R}" y2="${y(v).toFixed(1)}" stroke="#e6edf1" stroke-width="1"/>`
-      + `<text x="${PAD_L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#6b7c86">${v.toFixed(1)}</text>`;
+    grid += `<line x1="${PAD_L}" y1="${y(v).toFixed(1)}" x2="${W - PAD_R}" y2="${y(v).toFixed(1)}" stroke="${C.grid}" stroke-width="1"/>`
+      + `<text x="${PAD_L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="${C.label}">${v.toFixed(1)}</text>`;
   }
 
   let xlabels = '';
@@ -83,7 +92,7 @@ export function renderSwellChart(container, marine, config) {
     if (hourIndex % 6 === 0) {
       const day = p.time.toLocaleDateString('fr-FR', { weekday: 'short' });
       const hour = p.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-      xlabels += `<text x="${x(p.time.getTime()).toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="#6b7c86">${day} ${hour}</text>`;
+      xlabels += `<text x="${x(p.time.getTime()).toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="${C.label}">${day} ${hour}</text>`;
     }
   });
 
@@ -101,8 +110,8 @@ export function renderSwellChart(container, marine, config) {
 
   container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Courbes de houle et de vent sur 48 heures">
     ${band}${grid}${xlabels}${windAxis}
-    <path d="${area}" fill="#0e7fb0" opacity="0.15"/>
-    <path d="${line}" fill="none" stroke="#0e7fb0" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="${area}" fill="${C.area}" opacity="0.15"/>
+    <path d="${line}" fill="none" stroke="${C.line}" stroke-width="2.5" stroke-linejoin="round"/>
     ${hasWind ? `<path d="${windLine}" fill="none" stroke="#d0782a" stroke-width="2" stroke-dasharray="6 3" stroke-linejoin="round"/>` : ''}
     ${dots}
   </svg>`;
@@ -111,6 +120,7 @@ export function renderSwellChart(container, marine, config) {
 // Courbe de marée sur ~24 h, interpolée (cosinus) entre les extrêmes Stormglass.
 export function renderTideChart(container, tides, now) {
   if (!container) return;
+  const C = themeColors();
   const hint = '<p class="hint">Courbe de marée indisponible : clé Stormglass ou quota requis. Le bouton ↻ réessaie.</p>';
   if (!tides || tides.length < 2) { container.innerHTML = hint; return; }
   const sorted = tides.slice().sort((a, b) => a.time - b.time);
@@ -153,15 +163,15 @@ export function renderTideChart(container, tides, now) {
   const stepY = range > 4 ? 1 : range > 2 ? 0.5 : 0.25;
   let grid = '';
   for (let v = Math.ceil(yMin / stepY) * stepY; v <= yMax; v += stepY) {
-    grid += `<line x1="${PAD_L}" y1="${y(v).toFixed(1)}" x2="${W - PAD_R}" y2="${y(v).toFixed(1)}" stroke="#e6edf1" stroke-width="1"/>`
-      + `<text x="${PAD_L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="#6b7c86">${v.toFixed(1)}</text>`;
+    grid += `<line x1="${PAD_L}" y1="${y(v).toFixed(1)}" x2="${W - PAD_R}" y2="${y(v).toFixed(1)}" stroke="${C.grid}" stroke-width="1"/>`
+      + `<text x="${PAD_L - 6}" y="${(y(v) + 4).toFixed(1)}" text-anchor="end" font-size="10" fill="${C.label}">${v.toFixed(1)}</text>`;
   }
 
   let xlabels = '';
   const firstHour = Math.ceil(start / 3600000) * 3600000;
   for (let t = firstHour; t <= end; t += 6 * 3600000) {
     const d = new Date(t);
-    xlabels += `<text x="${x(t).toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="#6b7c86">${d.getHours()}h</text>`;
+    xlabels += `<text x="${x(t).toFixed(1)}" y="${H - 10}" text-anchor="middle" font-size="10" fill="${C.label}">${d.getHours()}h</text>`;
   }
 
   const nowX = x(now.getTime()).toFixed(1);
@@ -189,15 +199,15 @@ export function renderTideChart(container, tides, now) {
       const label = `${high ? 'PM' : 'BM'} ${e.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${e.height.toFixed(1)} m`
         + (coef ? ` · c.${coef}` : '');
       const anchor = x(e.time.getTime()) > W - 90 ? 'end' : (x(e.time.getTime()) < PAD_L + 60 ? 'start' : 'middle');
-      return `<circle cx="${x(e.time.getTime()).toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${high ? '#0e7fb0' : '#5a8ea6'}"/>`
-        + `<text x="${x(e.time.getTime()).toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="9" fill="#3d4f59">${label}</text>`
+      return `<circle cx="${x(e.time.getTime()).toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${high ? C.line : '#5a8ea6'}"/>`
+        + `<text x="${x(e.time.getTime()).toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="9" fill="${C.mark}">${label}</text>`
         + `<title>${e.time.toLocaleString('fr-FR')} — ${high ? 'marée haute' : 'marée basse'} ${e.height.toFixed(1)} m</title>`;
     }).join('');
 
   container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" role="img" aria-label="Courbe de marée sur 24 heures">
     ${grid}${xlabels}
-    <path d="${area}" fill="#0e7fb0" opacity="0.12"/>
-    <path d="${line}" fill="none" stroke="#0e7fb0" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="${area}" fill="${C.area}" opacity="0.12"/>
+    <path d="${line}" fill="none" stroke="${C.line}" stroke-width="2.5" stroke-linejoin="round"/>
     ${nowLine}${marks}
   </svg>`;
 }

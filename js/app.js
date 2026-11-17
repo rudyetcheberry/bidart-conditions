@@ -11,7 +11,7 @@ import { fetchHistoricalConditions } from './api.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '28';
+const APP_VERSION = '29';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -29,6 +29,8 @@ let state = {
 
 let sessionSnapshotCache = null; // { when: ms, snapshot } — conditions chargées pour la date du formulaire
 let analysisCriteria = null; // critères déduits des meilleures sessions
+let spotsMap = null; // instance Leaflet de la carte des spots
+let spotMarkers = {};
 
 let refreshing = false;
 
@@ -39,6 +41,7 @@ function activeSpot() {
 }
 
 function init() {
+  updateNightMode();
   setupTabs();
   setupSpotBar();
   setupSettings();
@@ -53,8 +56,18 @@ function init() {
   registerServiceWorker();
   refresh();
   setInterval(() => {
+    updateNightMode();
     if (document.visibilityState === 'visible') refresh();
   }, 15 * 60 * 1000);
+}
+
+// Thème sombre automatique : de 20 h à 8 h, l'app passe en mode nuit.
+function updateNightMode() {
+  const h = new Date().getHours();
+  const night = h >= 20 || h < 8;
+  const changed = document.body.classList.contains('night') !== night;
+  document.body.classList.toggle('night', night);
+  if (changed && state.data) render(); // re-rendu pour adapter les couleurs des graphiques
 }
 
 function registerServiceWorker() {
@@ -79,6 +92,8 @@ function setupTabs() {
       document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
       btn.classList.add('active');
       $(btn.dataset.tab).classList.add('active');
+      // La carte Leaflet doit être initialisée quand son conteneur est visible.
+      if (btn.dataset.tab === 'tab-spots') setTimeout(renderSpotsMap, 60);
     });
   });
 }
@@ -192,6 +207,7 @@ function setupSpotsTab() {
 
 function renderSpotsList() {
   renderSessionSpotSelect();
+  if (spotsMap) renderSpotsMap();
   const list = $('spots-list');
   list.innerHTML = state.spots.map((s) => `
     <li>
@@ -457,7 +473,69 @@ function render() {
   renderForecast();
   renderWindows();
   updateSessionConditionsHint();
+  if (spotsMap) renderSpotsMap();
   checkAlerts();
+}
+
+// Heure de prévision la plus proche de maintenant (pour colorer les pastilles).
+function nearestHour() {
+  if (!state.data || !state.data.marine || !state.data.marine.length) return null;
+  const now = new Date();
+  let hour = state.data.marine[0];
+  let best = Infinity;
+  for (const h of state.data.marine) {
+    const d = Math.abs(h.time - now);
+    if (d < best) { best = d; hour = h; }
+  }
+  return best < 3 * 3600 * 1000 ? hour : null;
+}
+
+// Carte des spots (Leaflet + OpenStreetMap, sans clé API).
+function renderSpotsMap() {
+  const el = $('spots-map');
+  if (!el) return;
+  if (typeof L === 'undefined') {
+    el.innerHTML = '<p class="hint">Carte indisponible : connexion requise au premier chargement.</p>';
+    return;
+  }
+  if (!spotsMap) {
+    spotsMap = L.map(el, { scrollWheelZoom: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap',
+    }).addTo(spotsMap);
+  }
+  Object.keys(spotMarkers).forEach((id) => { spotsMap.removeLayer(spotMarkers[id]); });
+  spotMarkers = {};
+  const hour = nearestHour();
+  const bounds = [];
+  state.spots.forEach((s) => {
+    const ok = hour ? matchesCriteria(hour, s.config).ok : null;
+    const color = ok === null ? '#6b7c86' : (ok ? '#1d8a4e' : '#b03a3a');
+    const marker = L.circleMarker([s.lat, s.lng], {
+      radius: s.id === state.activeSpotId ? 12 : 8,
+      color: '#ffffff',
+      weight: 2,
+      fillColor: color,
+      fillOpacity: 0.95,
+    }).addTo(spotsMap);
+    marker.bindTooltip(s.name
+      + (ok === null ? '' : (ok ? ' — favorable 🏄' : ' — hors critères')));
+    marker.on('click', () => {
+      state.activeSpotId = s.id;
+      Storage.saveActiveSpotId(state.activeSpotId);
+      state.data = null;
+      renderSpotsList();
+      refresh();
+    });
+    spotMarkers[s.id] = marker;
+    bounds.push([s.lat, s.lng]);
+  });
+  if (bounds.length === 1) {
+    spotsMap.setView(bounds[0], 14);
+  } else if (bounds.length) {
+    spotsMap.fitBounds(bounds, { padding: [28, 28] });
+  }
 }
 
 // --- Onglet Sessions (journal des sorties de surf) ---
@@ -731,9 +809,20 @@ function renderCurrent() {
   if (metar && typeof metar.windSpeed === 'number') {
     hour = { ...hour, windSpeed: metar.windSpeed, gust: metar.gust, windDirection: metar.windDirection };
   }
-  const { checks } = matchesCriteria(hour, spot.config);
+  const { ok, checks } = matchesCriteria(hour, spot.config);
   const nextTide = state.data.tides.find((t) => t.time > now);
   const nextCoef = nextTide ? tideCoefficient(state.data.tides, state.data.tides.indexOf(nextTide)) : null;
+  // Grand verdict GO / NO GO en tête d'écran
+  const failed = [];
+  if (!checks.swell) failed.push('houle');
+  if (!checks.period) failed.push('période');
+  if (!checks.wind) failed.push('vent');
+  if (!checks.windDir) failed.push('secteur');
+  const verdict = '<div class="verdict-banner ' + (ok ? 'go' : 'nogo') + '">'
+    + '<div class="main">' + (ok ? 'GO 🏄 — conditions favorables' : 'NO GO ⛔ — conditions non réunies') + '</div>'
+    + '<div class="sub">' + escapeHtml(spot.name)
+    + (ok ? ' — tous vos critères sont réunis' : ' — hors critères : ' + failed.join(', '))
+    + '</div></div>';
   const cards = [
     metric('Houle (totale)', `${fmt(hour.swellHeight, 1)} m`,
       `${degToDir(hour.swellDirection)} · pic ${fmt(hour.swellPeriod, 0)} s`
@@ -752,7 +841,7 @@ function renderCurrent() {
       : '—',
       nextCoef !== null && nextCoef !== undefined ? `coef. ≈ ${nextCoef}` : '', null),
   ];
-  $('current-cards').innerHTML = cards.join('');
+  $('current-cards').innerHTML = verdict + cards.join('');
 }
 
 function freshMetar() {

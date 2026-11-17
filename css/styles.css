@@ -8,8 +8,34 @@
   --bad: #b03a3a;
   --text: #1c2b33;
   --muted: #6b7c86;
+  --heading: #0b3d5c;
+  --field-bg: #ffffff;
+  --field-border: #cdd9e0;
   --radius: 14px;
 }
+
+/* Thème sombre automatique (classe .night posée par app.js entre 20 h et 8 h) */
+body.night {
+  --bg: #0c1922;
+  --card: #132836;
+  --primary: #0b3d5c;
+  --accent: #3ba7db;
+  --text: #e6f0f6;
+  --muted: #92aab6;
+  --heading: #9fd0ea;
+  --field-bg: #0f2330;
+  --field-border: #2a4a5e;
+}
+body.night .card,
+body.night .metric-card { border-color: #1f3d50; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35); }
+body.night input,
+body.night select,
+body.night textarea {
+  background: var(--field-bg);
+  color: var(--text);
+  border-color: var(--field-border);
+}
+body.night .demo-banner { background: #3a2c10; color: #ffd489; border-color: #6b531e; }
 
 * { box-sizing: border-box; }
 
@@ -78,7 +104,7 @@ main { padding: 12px; }
 .card h2 {
   margin: 0 0 10px;
   font-size: 1rem;
-  color: var(--primary);
+  color: var(--heading);
   padding-left: 9px;
   border-left: 3px solid var(--accent);
   line-height: 1.25;
@@ -87,6 +113,18 @@ main { padding: 12px; }
 .hint { color: var(--muted); font-size: 0.85rem; }
 
 .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+.verdict-banner {
+  grid-column: 1 / -1;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(11, 61, 92, 0.18);
+}
+.verdict-banner .main { font-size: 1.15rem; font-weight: 800; letter-spacing: 0.02em; }
+.verdict-banner .sub { font-size: 0.8rem; font-weight: 500; opacity: 0.92; margin-top: 2px; }
+.verdict-banner.go { background: linear-gradient(135deg, #1d8a4e, #14603a); }
+.verdict-banner.nogo { background: linear-gradient(135deg, #b03a3a, #7e2a2a); }
 
 .metric-card {
   background: var(--card);
@@ -179,6 +217,8 @@ input[type="number"], input[type="password"], input[type="datetime-local"], inpu
 }
 
 select[multiple] { height: auto; }
+
+#spots-map { height: 280px; border-radius: 10px; border: 1px solid #e3ecf1; z-index: 1; }
 
 .btn-row { display: flex; gap: 8px; margin-top: 8px; }
 .btn-row button { flex: 1; }
