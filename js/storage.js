@@ -17,6 +17,7 @@ export const DEFAULT_SPOTS = [
   { id: 'ilbarritz', name: 'Bidart — Ilbarritz', lat: 43.4276, lng: -1.5747 },
   { id: 'pavillon', name: 'Bidart — Pavillon Royal', lat: 43.4204, lng: -1.5672 },
   { id: 'guethary', name: 'Guéthary — Parlementia', lat: 43.4246, lng: -1.5620 },
+  { id: 'biarritz', name: 'Biarritz — Grande Plage', lat: 43.4832, lng: -1.5586 },
 ];
 
 export const DEFAULT_SETTINGS = {
@@ -47,7 +48,13 @@ export const Storage = {
   getSpots: () => {
     const saved = read('spots', null);
     if (saved && Array.isArray(saved) && saved.length > 0) {
-      return saved.map((s) => ({ ...s, config: { ...DEFAULT_CRITERIA, ...s.config } }));
+      // Migration : ajouter les spots par défaut absents (ex. Biarritz — Grande Plage)
+      const missing = DEFAULT_SPOTS.filter((d) => !saved.some((s) => s.id === d.id));
+      const merged = missing.length
+        ? saved.concat(missing.map((d) => ({ ...d, config: { ...DEFAULT_CRITERIA } })))
+        : saved;
+      if (missing.length) write('spots', merged);
+      return merged.map((s) => ({ ...s, config: { ...DEFAULT_CRITERIA, ...s.config } }));
     }
     // Migration : anciens critères uniques → spot par défaut
     const legacyAlerts = read('alerts', {});
