@@ -10,7 +10,7 @@ import { renderSwellChart, renderTideChart, tideCoefficient } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '23';
+const APP_VERSION = '24';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -23,6 +23,7 @@ let state = {
   metar: null,
   metarError: null,
   editingSpotId: null,
+  sessions: Storage.getSessions(),
 };
 
 let refreshing = false;
@@ -38,6 +39,7 @@ function init() {
   setupSpotBar();
   setupSettings();
   setupSpotsTab();
+  setupSessionsTab();
   setupNotifications();
   $('demo-mode').checked = state.settings.demoMode;
   updateDemoBanner();
@@ -185,6 +187,7 @@ function setupSpotsTab() {
 }
 
 function renderSpotsList() {
+  renderSessionSpotSelect();
   const list = $('spots-list');
   list.innerHTML = state.spots.map((s) => `
     <li>
@@ -449,7 +452,123 @@ function render() {
   renderTides();
   renderForecast();
   renderWindows();
+  updateSessionConditionsHint();
   checkAlerts();
+}
+
+// --- Onglet Sessions (journal des sorties de surf) ---
+
+function renderSessionSpotSelect() {
+  const sel = $('session-spot');
+  if (!sel) return;
+  sel.innerHTML = state.spots
+    .map((s) => `<option value="${s.id}" ${s.id === state.activeSpotId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`)
+    .join('');
+}
+
+function setupSessionsTab() {
+  const spotSel = $('session-spot');
+  if (!spotSel) return;
+  renderSessionSpotSelect();
+  const dateInput = $('session-date');
+  const setNow = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    dateInput.value = d.toISOString().slice(0, 16);
+  };
+  setNow();
+  $('btn-save-session').addEventListener('click', () => {
+    const spot = state.spots.find((s) => s.id === spotSel.value) || activeSpot();
+    const when = dateInput.value ? new Date(dateInput.value) : new Date();
+    const ratingVal = $('session-rating').value;
+    const session = {
+      id: 's' + Date.now(),
+      date: when.toISOString(),
+      spotId: spot.id,
+      spotName: spot.name,
+      rating: ratingVal ? parseInt(ratingVal, 10) : null,
+      notes: $('session-notes').value.trim(),
+      conditions: currentConditionsSnapshot(when),
+    };
+    state.sessions = [session].concat(state.sessions);
+    Storage.saveSessions(state.sessions);
+    $('session-notes').value = '';
+    $('session-rating').value = '';
+    setNow();
+    renderSessionsList();
+  });
+  renderSessionsList();
+}
+
+function currentConditionsSnapshot(when) {
+  if (!state.data || !state.data.marine || state.data.marine.length === 0) return null;
+  let hour = state.data.marine[0];
+  let best = Infinity;
+  for (const h of state.data.marine) {
+    const d = Math.abs(h.time - when);
+    if (d < best) { best = d; hour = h; }
+  }
+  if (best > 3 * 3600 * 1000) return null;
+  const metar = freshMetar();
+  const observed = metar && typeof metar.windSpeed === 'number';
+  const parts = [
+    `houle ${fmt(hour.swellHeight, 1)} m`,
+    `${fmt(hour.swellPeriod, 0)} s`,
+    `vent ${fmt(observed ? metar.windSpeed : hour.windSpeed, 0)} km/h ${degToDir(observed ? metar.windDirection : hour.windDirection)}`,
+  ];
+  const gust = observed && metar.gust ? metar.gust : hour.gust;
+  if (gust) parts.push(`rafales ${fmt(gust, 0)}`);
+  const tide = state.data.tides.find((t) => Math.abs(t.time - when) < 6 * 3600 * 1000);
+  if (tide) parts.push(tide.type === 'high' ? 'près marée haute' : 'près marée basse');
+  return { text: parts.join(' · ') };
+}
+
+function updateSessionConditionsHint() {
+  const el = $('session-conditions');
+  if (!el) return;
+  const snap = currentConditionsSnapshot(new Date());
+  el.textContent = 'Conditions actuelles : ' + (snap ? snap.text : 'indisponibles');
+}
+
+function renderSessionsList() {
+  const list = $('sessions-list');
+  if (!list) return;
+  const sessions = state.sessions || [];
+  const stats = $('sessions-stats');
+  if (stats) {
+    const now = new Date();
+    const monthCount = sessions.filter((s) => {
+      const d = new Date(s.date);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    }).length;
+    stats.textContent = sessions.length === 0
+      ? 'Aucune session enregistrée.'
+      : `${sessions.length} session${sessions.length > 1 ? 's' : ''} · ${monthCount} ce mois-ci`;
+  }
+  if (sessions.length === 0) {
+    list.innerHTML = '<li class="hint">Aucune session enregistrée.</li>';
+    return;
+  }
+  list.innerHTML = sessions.map((s) => {
+    const d = new Date(s.date);
+    const stars = s.rating ? '★'.repeat(s.rating) : '';
+    const cond = s.conditions && s.conditions.text ? `<div class="spot-coords">${escapeHtml(s.conditions.text)}</div>` : '';
+    const notes = s.notes ? `<div class="spot-coords">${escapeHtml(s.notes)}</div>` : '';
+    return `<li>
+      <div>
+        <div class="spot-name">${d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} ${d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${escapeHtml(s.spotName)} ${stars}</div>
+        ${cond}${notes}
+      </div>
+      <div class="spot-actions"><button data-del-session="${s.id}">Supprimer</button></div>
+    </li>`;
+  }).join('');
+  list.querySelectorAll('[data-del-session]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      state.sessions = state.sessions.filter((s) => s.id !== btn.dataset.delSession);
+      Storage.saveSessions(state.sessions);
+      renderSessionsList();
+    });
+  });
 }
 
 function renderCurrent() {

@@ -81,4 +81,7 @@ export const Storage = {
     return u.date === today ? u : { date: today, count: 0 };
   },
   saveUsage: (usage) => write('usage', usage),
+
+  getSessions: () => read('sessions', []),
+  saveSessions: (sessions) => write('sessions', sessions),
 };

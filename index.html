@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css?v=23">
+  <link rel="stylesheet" href="css/styles.css?v=24">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -35,6 +35,7 @@
     <button data-tab="tab-forecast">Prévisions</button>
     <button data-tab="tab-alerts">Alertes</button>
     <button data-tab="tab-spots">Spots</button>
+    <button data-tab="tab-sessions">Sessions</button>
     <button data-tab="tab-settings">Réglages</button>
   </nav>
 
@@ -170,6 +171,39 @@
       </div>
     </section>
 
+    <!-- ONGLET SESSIONS -->
+    <section id="tab-sessions" class="tab">
+      <div class="card">
+        <h2>Nouvelle session</h2>
+        <label>Date et heure
+          <input type="datetime-local" id="session-date">
+        </label>
+        <label>Spot
+          <select id="session-spot"></select>
+        </label>
+        <label>Note de la session
+          <select id="session-rating">
+            <option value="">—</option>
+            <option value="1">★</option>
+            <option value="2">★★</option>
+            <option value="3">★★★</option>
+            <option value="4">★★★★</option>
+            <option value="5">★★★★★</option>
+          </select>
+        </label>
+        <label>Commentaire
+          <textarea id="session-notes" rows="2" placeholder="Conditions ressenties, monde, ambiance…"></textarea>
+        </label>
+        <p class="hint" id="session-conditions">Conditions actuelles : —</p>
+        <button id="btn-save-session" class="primary">Enregistrer la session</button>
+      </div>
+      <div class="card">
+        <h2>Historique</h2>
+        <p class="hint" id="sessions-stats">—</p>
+        <ul id="sessions-list" class="tide-list"><li class="hint">Aucune session enregistrée.</li></ul>
+      </div>
+    </section>
+
     <!-- ONGLET RÉGLAGES -->
     <section id="tab-settings" class="tab">
       <div class="card">
@@ -218,6 +252,6 @@
     </section>
   </main>
 
-  <script type="module" src="js/app.js?v=23"></script>
+  <script type="module" src="js/app.js?v=24"></script>
 </body>
 </html>
