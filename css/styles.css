@@ -180,6 +180,9 @@ input[type="number"], input[type="password"], input[type="datetime-local"], inpu
 
 select[multiple] { height: auto; }
 
+.btn-row { display: flex; gap: 8px; margin-top: 8px; }
+.btn-row button { flex: 1; }
+
 button {
   font: inherit;
   border: none;

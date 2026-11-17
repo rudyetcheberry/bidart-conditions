@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css?v=27">
+  <link rel="stylesheet" href="css/styles.css?v=28">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -190,7 +190,10 @@
           <textarea id="session-notes" rows="2" placeholder="Conditions ressenties, monde, ambiance…"></textarea>
         </label>
         <p class="hint" id="session-conditions">Conditions actuelles : —</p>
-        <button id="btn-save-session" class="primary">Enregistrer la session</button>
+        <div class="btn-row">
+          <button id="btn-instant-session" class="primary">⚡ Session instant T</button>
+          <button id="btn-save-session">Enregistrer la session</button>
+        </div>
       </div>
       <div class="card">
         <h2>Historique</h2>
@@ -252,6 +255,6 @@
     </section>
   </main>
 
-  <script type="module" src="js/app.js?v=27"></script>
+  <script type="module" src="js/app.js?v=28"></script>
 </body>
 </html>

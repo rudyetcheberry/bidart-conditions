@@ -11,7 +11,7 @@ import { fetchHistoricalConditions } from './api.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '27';
+const APP_VERSION = '28';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -484,6 +484,34 @@ function setupSessionsTab() {
   // Le changement de date recharge les conditions (fenêtre 48 h ou archives Open-Meteo).
   dateInput.addEventListener('change', loadSessionConditions);
   spotSel.addEventListener('change', loadSessionConditions);
+  // Session « instant T » : spot + un appui → données actuelles capturées automatiquement.
+  $('btn-instant-session').addEventListener('click', async () => {
+    const btn = $('btn-instant-session');
+    btn.disabled = true;
+    btn.textContent = '⚡ Mesure en cours…';
+    try { await refresh(true); } catch (e) { /* on capture avec les données disponibles */ }
+    const spot = state.spots.find((s) => s.id === spotSel.value) || activeSpot();
+    const when = new Date();
+    const ratingVal = $('session-rating').value;
+    const session = {
+      id: 's' + Date.now(),
+      date: when.toISOString(),
+      spotId: spot.id,
+      spotName: spot.name,
+      rating: ratingVal ? parseInt(ratingVal, 10) : null,
+      notes: $('session-notes').value.trim(),
+      conditions: syncSnapshotFromMarine(when)
+        || (sessionSnapshotCache ? sessionSnapshotCache.snapshot : null),
+    };
+    state.sessions = [session].concat(state.sessions);
+    Storage.saveSessions(state.sessions);
+    $('session-notes').value = '';
+    $('session-rating').value = '';
+    setNow();
+    renderSessionsList();
+    btn.disabled = false;
+    btn.textContent = '⚡ Session instant T';
+  });
   $('btn-save-session').addEventListener('click', () => {
     const spot = state.spots.find((s) => s.id === spotSel.value) || activeSpot();
     const when = dateInput.value ? new Date(dateInput.value) : new Date();
