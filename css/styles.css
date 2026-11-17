@@ -193,6 +193,11 @@ thead th { color: var(--muted); font-weight: 600; border-bottom: 2px solid #e6ed
 tbody tr:nth-child(even) { background: #f7fafc; }
 tr.favorable td { background: #e4f4ea; }
 
+/* Tableau en mode sombre : fonds adaptés pour garder le texte lisible */
+body.night thead th { border-bottom-color: #2a4a5e; }
+body.night tbody tr:nth-child(even) { background: #0f2330; }
+body.night tr.favorable td { background: #14402c; }
+
 fieldset {
   border: 1px solid #dde6ec;
   border-radius: 10px;
