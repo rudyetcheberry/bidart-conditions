@@ -11,7 +11,7 @@ import { fetchHistoricalConditions } from './api.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '29';
+const APP_VERSION = '30';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -56,17 +56,14 @@ function init() {
   registerServiceWorker();
   refresh();
   setInterval(() => {
-    updateNightMode();
     if (document.visibilityState === 'visible') refresh();
   }, 15 * 60 * 1000);
 }
 
-// Thème sombre automatique : de 20 h à 8 h, l'app passe en mode nuit.
+// Thème sombre permanent (choix utilisateur) : actif à toute heure.
 function updateNightMode() {
-  const h = new Date().getHours();
-  const night = h >= 20 || h < 8;
-  const changed = document.body.classList.contains('night') !== night;
-  document.body.classList.toggle('night', night);
+  const changed = !document.body.classList.contains('night');
+  document.body.classList.add('night');
   if (changed && state.data) render(); // re-rendu pour adapter les couleurs des graphiques
 }
 
