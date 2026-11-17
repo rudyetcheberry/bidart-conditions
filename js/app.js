@@ -10,7 +10,7 @@ import { renderSwellChart, renderTideChart, tideCoefficient } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '21';
+const APP_VERSION = '22';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -469,6 +469,7 @@ function renderCurrent() {
   }
   const { checks } = matchesCriteria(hour, spot.config);
   const nextTide = state.data.tides.find((t) => t.time > now);
+  const nextCoef = nextTide ? tideCoefficient(state.data.tides, state.data.tides.indexOf(nextTide)) : null;
   const cards = [
     metric('Houle (totale)', `${fmt(hour.swellHeight, 1)} m`,
       `${degToDir(hour.swellDirection)} · pic ${fmt(hour.swellPeriod, 0)} s`
@@ -482,8 +483,7 @@ function renderCurrent() {
       checks.wind && checks.windDir),
     metric('Eau', `${fmt(hour.waterTemperature, 1)} °C`, '', null),
     (!metar ? metarCard() : ''),
-  const nextCoef = nextTide ? tideCoefficient(state.data.tides, state.data.tides.indexOf(nextTide)) : null;
-  metric('Marée', nextTide
+    metric('Marée', nextTide
       ? `${nextTide.type === 'high' ? 'Haute' : 'Basse'} à ${nextTide.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
       : '—',
       nextCoef !== null && nextCoef !== undefined ? `coef. ≈ ${nextCoef}` : '', null),
