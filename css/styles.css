@@ -194,9 +194,11 @@ tbody tr:nth-child(even) { background: #f7fafc; }
 tr.favorable td { background: #e4f4ea; }
 
 /* Tableau en mode sombre : fonds adaptés pour garder le texte lisible */
-body.night thead th { border-bottom-color: #2a4a5e; }
-body.night tbody tr:nth-child(even) { background: #0f2330; }
-body.night tr.favorable td { background: #14402c; }
+body.night thead th { border-bottom-color: #2a4a5e; color: #9fd0ea; }
+body.night table { color: var(--text); }
+body.night td { color: var(--text); border-bottom: 1px solid #24455c; }
+body.night tbody tr:nth-child(even) { background: #1b3949; }
+body.night tr.favorable td { background: #17513a; }
 
 fieldset {
   border: 1px solid #dde6ec;
