@@ -7,6 +7,26 @@ const PAD_R = 14;
 const PAD_T = 14;
 const PAD_B = 30;
 
+// Unité de hauteur (m) pour Boucau-Bayonne / Biarritz : marnage moyen des
+// vives-eaux équinoxiales. Sert au coefficient de marée C = marnage / U × 100.
+// Calibration approximative (maree.info : marnage 1,52 m → coef 41 ; 1,30 m → 38).
+const TIDE_UNIT = 3.6;
+
+// Coefficient de marée (20–120) d'un extrême, calculé à partir du marnage
+// avec l'extrême opposé voisin (formule C = marnage / U × 100).
+export function tideCoefficient(tides, idx) {
+  const t = tides[idx];
+  if (!t || typeof t.height !== 'number') return null;
+  let other = null;
+  if (t.type === 'high') {
+    other = tides[idx + 1] && tides[idx + 1].type === 'low' ? tides[idx + 1] : tides[idx - 1];
+  } else {
+    other = tides[idx - 1] && tides[idx - 1].type === 'high' ? tides[idx - 1] : tides[idx + 1];
+  }
+  if (!other || typeof other.height !== 'number') return null;
+  return Math.round((Math.abs(t.height - other.height) / TIDE_UNIT) * 100);
+}
+
 export function renderSwellChart(container, marine, config) {
   if (!container) return;
   const pts = marine.filter((h) => typeof h.swellHeight === 'number');
@@ -139,7 +159,10 @@ export function renderTideChart(container, tides, now) {
       const high = e.type === 'high';
       const cy = y(e.height);
       const ly = high ? cy - 8 : cy + 16;
-      const label = `${high ? 'PM' : 'BM'} ${e.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${e.height.toFixed(1)} m`;
+      const idx = sorted.indexOf(e);
+      const coef = tideCoefficient(sorted, idx);
+      const label = `${high ? 'PM' : 'BM'} ${e.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · ${e.height.toFixed(1)} m`
+        + (coef ? ` · c.${coef}` : '');
       const anchor = x(e.time.getTime()) > W - 90 ? 'end' : (x(e.time.getTime()) < PAD_L + 60 ? 'start' : 'middle');
       return `<circle cx="${x(e.time.getTime()).toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="${high ? '#0e7fb0' : '#5a8ea6'}"/>`
         + `<text x="${x(e.time.getTime()).toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anchor}" font-size="9" fill="#3d4f59">${label}</text>`

@@ -6,11 +6,11 @@ import {
   upcomingTideAlerts,
   degToDir,
 } from './alerts.js';
-import { renderSwellChart, renderTideChart } from './chart.js';
+import { renderSwellChart, renderTideChart, tideCoefficient } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '20';
+const APP_VERSION = '21';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -482,9 +482,11 @@ function renderCurrent() {
       checks.wind && checks.windDir),
     metric('Eau', `${fmt(hour.waterTemperature, 1)} °C`, '', null),
     (!metar ? metarCard() : ''),
-    metric('Marée', nextTide
+  const nextCoef = nextTide ? tideCoefficient(state.data.tides, state.data.tides.indexOf(nextTide)) : null;
+  metric('Marée', nextTide
       ? `${nextTide.type === 'high' ? 'Haute' : 'Basse'} à ${nextTide.time.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-      : '—', '', null),
+      : '—',
+      nextCoef !== null && nextCoef !== undefined ? `coef. ≈ ${nextCoef}` : '', null),
   ];
   $('current-cards').innerHTML = cards.join('');
 }
