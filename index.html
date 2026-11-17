@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/styles.css?v=25">
+  <link rel="stylesheet" href="css/styles.css?v=26">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -32,7 +32,6 @@
 
   <nav class="bottom-nav">
     <button data-tab="tab-current" class="active">Relevés</button>
-    <button data-tab="tab-forecast">Prévisions</button>
     <button data-tab="tab-alerts">Alertes</button>
     <button data-tab="tab-spots">Spots</button>
     <button data-tab="tab-sessions">Sessions</button>
@@ -44,7 +43,7 @@
     <div id="demo-banner" class="demo-banner hidden">
       ⚠️ Mode démo actif : données simulées. Désactivez-le dans l'onglet Réglages.
     </div>
-    <!-- ONGLET RELEVÉS -->
+    <!-- ONGLET RELEVÉS + PRÉVISIONS -->
     <section id="tab-current" class="tab active">
       <div id="current-cards" class="cards">
         <p class="hint">Chargement des relevés…</p>
@@ -53,12 +52,8 @@
         <h2>Marées — courbe 24 h</h2>
         <div id="tide-chart"><p class="hint">—</p></div>
       </div>
-    </section>
-
-    <!-- ONGLET PRÉVISIONS -->
-    <section id="tab-forecast" class="tab">
       <div class="card">
-        <h2>Houle — 48 h</h2>
+        <h2>Houle & vent — 48 h</h2>
         <p class="hint">Bande verte : plage de houle idéale. <span style="color:#0e7fb0">▬ houle (m, à gauche)</span> · <span style="color:#d0782a">▬ vent (km/h, à droite)</span> · pointillés verts : vent max. Points verts : conditions favorables.</p>
         <div id="swell-chart"></div>
       </div>
@@ -257,6 +252,6 @@
     </section>
   </main>
 
-  <script type="module" src="js/app.js?v=25"></script>
+  <script type="module" src="js/app.js?v=26"></script>
 </body>
 </html>
