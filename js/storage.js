@@ -25,6 +25,7 @@ export const DEFAULT_SETTINGS = {
   demoMode: false,
   dailyQuota: 10,
   metarRelay: '',
+  theme: 'dark', // 'dark' (nuit) ou 'light' (clair)
 };
 
 function read(key, fallback) {

@@ -9,7 +9,7 @@
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/styles.css?v=30">
+  <link rel="stylesheet" href="css/styles.css?v=31">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -248,6 +248,13 @@
         <button id="btn-save-quota" class="primary">Enregistrer le quota</button>
       </div>
       <div class="card">
+        <h2>Apparence</h2>
+        <label class="switch-row">
+          <span>Mode nuit (thème sombre)</span>
+          <input type="checkbox" id="night-mode">
+        </label>
+      </div>
+      <div class="card">
         <h2>Mode démo</h2>
         <label class="switch-row">
           <span>Utiliser des données simulées (sans clé API)</span>
@@ -262,6 +269,6 @@
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="js/app.js?v=30"></script>
+  <script type="module" src="js/app.js?v=31"></script>
 </body>
 </html>

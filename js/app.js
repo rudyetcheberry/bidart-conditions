@@ -11,7 +11,7 @@ import { fetchHistoricalConditions } from './api.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '30';
+const APP_VERSION = '31';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -60,10 +60,11 @@ function init() {
   }, 15 * 60 * 1000);
 }
 
-// Thème sombre permanent (choix utilisateur) : actif à toute heure.
+// Thème clair/sombre selon le réglage utilisateur (nuit par défaut).
 function updateNightMode() {
-  const changed = !document.body.classList.contains('night');
-  document.body.classList.add('night');
+  const night = state.settings.theme !== 'light';
+  const changed = document.body.classList.contains('night') !== night;
+  document.body.classList.toggle('night', night);
   if (changed && state.data) render(); // re-rendu pour adapter les couleurs des graphiques
 }
 
@@ -140,6 +141,15 @@ function setupSettings() {
     updateDemoBanner();
     refresh();
   });
+  const nightModeInput = $('night-mode');
+  if (nightModeInput) {
+    nightModeInput.checked = state.settings.theme !== 'light';
+    nightModeInput.addEventListener('change', (e) => {
+      state.settings.theme = e.target.checked ? 'dark' : 'light';
+      Storage.saveSettings(state.settings);
+      updateNightMode();
+    });
+  }
   const dailyQuotaInput = $('daily-quota');
   if (dailyQuotaInput) {
     dailyQuotaInput.value = state.settings.dailyQuota;
