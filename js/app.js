@@ -12,7 +12,7 @@ import { renderSwellChart, renderTideChart, tideCoefficient } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '37';
+const APP_VERSION = '38';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -504,13 +504,14 @@ async function refresh(force = false) {
       state.tides = rawTides.tides.map((t) => ({ ...t, time: new Date(t.time) }));
     }
 
-    // --- Houle/vent par spot : cache 6 h, sinon fetch en parallèle ---
+    // --- Houle/vent par spot : cache 6 h, sinon fetch en parallèle ;
+    // ↻ (force) contourne le cache et retélécharge tout ---
     const toFetch = [];
     state.spots.forEach((s) => {
       const rawCache = Storage.getLastData(s.id);
       const cached = rawCache && rawCache.source === 'live' ? reviveData(rawCache) : null;
       const fresh = cached && now - cached.fetchedAt.getTime() < MARINE_TTL;
-      if (fresh && cached.marine.length) {
+      if (!force && fresh && cached.marine.length) {
         state.spotsData[s.id] = { marine: cached.marine, fetchedAt: cached.fetchedAt, source: 'live' };
       } else {
         toFetch.push(s);
