@@ -10,6 +10,12 @@ export const DEFAULT_CRITERIA = {
   windDirs: ['any'],
   tideLeadMin: 0,
   tideStates: ['high', 'low'],
+  // Moments de marée favorables : 'rising' (montante), 'falling' (descendante),
+  // 'mid' (mi-marée). Tableau vide = pas de contrainte.
+  tidePhases: [],
+  // Plage de coefficient de marée (0–120 = pas de contrainte).
+  coefMin: 0,
+  coefMax: 120,
 };
 
 export const DEFAULT_SPOTS = [
@@ -70,9 +76,6 @@ export const Storage = {
     return spots;
   },
   saveSpots: (spots) => write('spots', spots),
-
-  getActiveSpotId: () => read('activeSpotId', 'bidart'),
-  saveActiveSpotId: (id) => write('activeSpotId', id),
 
   getLastData: (spotId) => read('lastData.' + spotId, null),
   saveLastData: (spotId, data) => write('lastData.' + spotId, data),

@@ -1,4 +1,4 @@
-import { matchesCriteria } from './alerts.js';
+import { matchesCriteria, tideContextAt } from './alerts.js';
 
 // Couleurs adaptées au thème (mode nuit = classe .night sur <body>).
 function themeColors() {
@@ -18,7 +18,7 @@ const PAD_B = 30;
 // Unité de hauteur (m) pour Boucau-Bayonne / Biarritz : marnage moyen des
 // vives-eaux équinoxiales. Sert au coefficient de marée C = marnage / U × 100.
 // Calibration approximative (maree.info : marnage 1,52 m → coef 41 ; 1,30 m → 38).
-const TIDE_UNIT = 3.6;
+export const TIDE_UNIT = 3.6;
 
 // Coefficient de marée (20–120) d'un extrême, calculé à partir du marnage
 // avec l'extrême opposé voisin (formule C = marnage / U × 100).
@@ -35,7 +35,9 @@ export function tideCoefficient(tides, idx) {
   return Math.round((Math.abs(t.height - other.height) / TIDE_UNIT) * 100);
 }
 
-export function renderSwellChart(container, marine, config) {
+// tides (facultatif) : extrêmes Stormglass pour évaluer les critères de marée
+// (phase, coefficient) sur les points de prévision.
+export function renderSwellChart(container, marine, config, tides) {
   if (!container) return;
   const C = themeColors();
   const pts = marine.filter((h) => typeof h.swellHeight === 'number');
@@ -101,7 +103,8 @@ export function renderSwellChart(container, marine, config) {
   const band = `<rect x="${PAD_L}" y="${bandTop}" width="${W - PAD_L - PAD_R}" height="${(bandBottom - bandTop).toFixed(1)}" fill="#1d8a4e" opacity="0.12"/>`;
 
   const dots = pts.map((p) => {
-    const { ok } = matchesCriteria(p, config);
+    const ctx = tideContextAt(tides, p.time);
+    const { ok } = matchesCriteria(p, config, ctx);
     const period = typeof p.swellPeriod === 'number' ? `${p.swellPeriod} s` : '—';
     const wind = typeof p.windSpeed === 'number' ? ` · vent ${p.windSpeed} km/h` : '';
     return `<circle cx="${x(p.time.getTime()).toFixed(1)}" cy="${y(p.swellHeight).toFixed(1)}" r="3" fill="${ok ? '#1d8a4e' : '#b03a3a'}">`
