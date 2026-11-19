@@ -9,7 +9,7 @@
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/styles.css?v=36">
+  <link rel="stylesheet" href="css/styles.css?v=37">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -112,6 +112,8 @@
         <h2>Mes spots de surf</h2>
         <ul id="spots-list" class="spots-list"></ul>
         <button id="btn-add-spot" class="primary">+ Ajouter un spot</button>
+        <button id="btn-clean-spots" class="ghost">🗑 Supprimer les spots sans session</button>
+        <p class="hint">Ce bouton ne garde que les spots ayant au moins une session dans l'historique (un spot est toujours conservé par sécurité).</p>
       </div>
       <div class="card" id="spot-edit-card" style="display:none">
         <h2 id="spot-edit-title">Nouveau spot</h2>
@@ -296,6 +298,6 @@
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="js/app.js?v=36"></script>
+  <script type="module" src="js/app.js?v=37"></script>
 </body>
 </html>

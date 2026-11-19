@@ -55,8 +55,12 @@ export const Storage = {
   getSpots: () => {
     const saved = read('spots', null);
     if (saved && Array.isArray(saved) && saved.length > 0) {
-      // Migration : ajouter les spots par défaut absents (ex. Biarritz — Grande Plage)
-      const missing = DEFAULT_SPOTS.filter((d) => !saved.some((s) => s.id === d.id));
+      // Migration : ne ré-ajouter que les spots par défaut jamais supprimés
+      // volontairement par l'utilisateur (sinon la suppression était annulée
+      // à chaque démarrage).
+      const removed = read('removedSpots', []);
+      const missing = DEFAULT_SPOTS.filter((d) => !saved.some((s) => s.id === d.id)
+        && removed.indexOf(d.id) === -1);
       const merged = missing.length
         ? saved.concat(missing.map((d) => ({ ...d, config: { ...DEFAULT_CRITERIA } })))
         : saved;
@@ -95,4 +99,8 @@ export const Storage = {
 
   getSessions: () => read('sessions', []),
   saveSessions: (sessions) => write('sessions', sessions),
+
+  // Spots par défaut supprimés volontairement (pour ne pas les ré-ajouter)
+  getRemovedSpots: () => read('removedSpots', []),
+  saveRemovedSpots: (ids) => write('removedSpots', ids),
 };

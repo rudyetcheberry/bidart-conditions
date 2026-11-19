@@ -12,7 +12,7 @@ import { renderSwellChart, renderTideChart, tideCoefficient } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '36';
+const APP_VERSION = '37';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -181,6 +181,8 @@ function updateNotifyStatus(perm) {
 
 function setupSpotsTab() {
   $('btn-add-spot').addEventListener('click', () => openSpotForm(null));
+  const cleanBtn = $('btn-clean-spots');
+  if (cleanBtn) cleanBtn.addEventListener('click', cleanSpotsWithoutSessions);
   $('btn-cancel-spot').addEventListener('click', () => {
     $('spot-edit-card').style.display = 'none';
     state.editingSpotId = null;
@@ -350,11 +352,52 @@ function deleteSpot(spotId) {
   if (!confirm(`Supprimer le spot « ${spot.name} » ?`)) return;
   state.spots = state.spots.filter((s) => s.id !== spotId);
   Storage.saveSpots(state.spots);
+  // Si c'est un spot par défaut, on mémorise sa suppression pour éviter
+  // qu'il ne soit ré-ajouté automatiquement au prochain démarrage.
+  const removed = Storage.getRemovedSpots();
+  if (!removed.includes(spotId)) {
+    removed.push(spotId);
+    Storage.saveRemovedSpots(removed);
+  }
   delete state.spotsData[spotId];
   if (state.selectedSpotId === spotId) {
     state.selectedSpotId = null;
     refresh();
   }
+  renderSpotsList();
+}
+
+// Ne garder que les spots ayant au moins une session dans l'historique.
+function cleanSpotsWithoutSessions() {
+  const surfedIds = {};
+  for (const s of state.sessions || []) {
+    if (s.spotId) surfedIds[s.spotId] = true;
+  }
+  const candidates = state.spots.filter((s) => !surfedIds[s.id]);
+  if (candidates.length === 0) {
+    alert('Tous vos spots ont déjà au moins une session dans l\'historique.');
+    return;
+  }
+  // Il faut toujours garder au moins un spot.
+  if (candidates.length === state.spots.length) {
+    candidates.shift(); // on garde le premier spot, on supprime les autres
+  }
+  const names = candidates.map((s) => s.name).join(', ');
+  if (!confirm(`Supprimer ${candidates.length} spot${candidates.length > 1 ? 's' : ''} sans aucune session ?\n\n${names}`)) return;
+  const removed = Storage.getRemovedSpots();
+  for (const spot of candidates) {
+    state.spots = state.spots.filter((s) => s.id !== spot.id);
+    delete state.spotsData[spot.id];
+    if (!state.spots.some((s) => s.id === spot.id) && spot && !removed.includes(spot.id)) {
+      removed.push(spot.id);
+    }
+  }
+  Storage.saveRemovedSpots(removed);
+  Storage.saveSpots(state.spots);
+  if (state.selectedSpotId && !state.spots.some((s) => s.id === state.selectedSpotId)) {
+    state.selectedSpotId = null;
+  }
+  refresh();
   renderSpotsList();
 }
 

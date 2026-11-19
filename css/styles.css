@@ -318,6 +318,15 @@ button {
 
 button.primary { background: var(--accent); color: #fff; width: 100%; font-weight: 600; }
 button.primary:active { opacity: 0.85; }
+button.ghost {
+  background: transparent;
+  color: var(--bad);
+  font-weight: 600;
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid var(--bad);
+}
+button.ghost:active { opacity: 0.75; }
 
 .switch-row {
   display: flex;
