@@ -9,7 +9,7 @@
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="css/styles.css?v=34">
+  <link rel="stylesheet" href="css/styles.css?v=35">
   <script>
     window.addEventListener('error', function () {
       var el = document.getElementById('boot-error');
@@ -46,9 +46,8 @@
     </div>
     <!-- ONGLET RELEVÉS + PRÉVISIONS -->
     <section id="tab-current" class="tab active">
-      <div class="card">
-        <h2>Meilleurs spots à l'instant T</h2>
-        <p class="hint">Classement selon vos critères par spot, avec les relevés en direct (houle, vent observé LFBZ, marée). Touchez un spot pour voir ses détails.</p>
+      <div class="card card-compact">
+        <h2>Spots GO à l'instant T</h2>
         <ul id="spot-ranking" class="ranking-list"><li class="hint">Chargement…</li></ul>
       </div>
       <div id="current-cards" class="cards">
@@ -295,6 +294,6 @@
   </main>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script type="module" src="js/app.js?v=34"></script>
+  <script type="module" src="js/app.js?v=35"></script>
 </body>
 </html>

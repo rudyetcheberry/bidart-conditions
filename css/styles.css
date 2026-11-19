@@ -154,15 +154,20 @@ main { padding: 12px; }
 .spot-bar label { margin-bottom: 0; }
 
 /* --- Classement des spots à l'instant T (écran d'accueil) --- */
+.card-compact { padding: 10px 12px; }
+.card-compact h2 { margin-bottom: 6px; }
 .ranking-list { list-style: none; margin: 0; padding: 0; }
 .rank-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 8px;
+  gap: 10px;
+  padding: 6px 6px;
   border-radius: 10px;
   cursor: pointer;
 }
+.ranking-nogo { padding: 4px 8px; }
+.rank-num.good { background: var(--good); }
+.rank-num.bad { background: var(--bad); }
 .rank-row:hover { background: rgba(14, 127, 176, 0.07); }
 .rank-row.selected {
   background: rgba(14, 127, 176, 0.14);
@@ -170,19 +175,17 @@ main { padding: 12px; }
 }
 .rank-num {
   flex-shrink: 0;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   color: #fff;
-  background: var(--accent);
+  background: var(--good);
 }
-.rank-num.good { background: var(--good); }
-.rank-num.bad { background: var(--bad); }
 .rank-info .spot-name { font-weight: 650; font-size: 0.95rem; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .rank-info .spot-coords { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
 body.night .rank-row:hover { background: rgba(59, 167, 219, 0.10); }

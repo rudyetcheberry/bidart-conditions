@@ -12,7 +12,7 @@ import { renderSwellChart, renderTideChart, tideCoefficient } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '34';
+const APP_VERSION = '35';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -530,9 +530,16 @@ function spotRanking() {
 function renderRanking() {
   const el = $('spot-ranking');
   if (!el) return;
-  const rows = spotRanking();
-  if (rows.length === 0) {
+  const all = spotRanking();
+  // On n'affiche que les spots GO ; les NO GO sont réduits à une ligne de comptage.
+  const rows = all.filter((r) => r.ok);
+  const nogo = all.length - rows.length;
+  if (all.length === 0) {
     el.innerHTML = '<li class="hint">Relevés indisponibles pour le moment.</li>';
+    return;
+  }
+  if (rows.length === 0) {
+    el.innerHTML = `<li class="hint">Aucun spot GO pour l'instant · ${nogo} spot${nogo > 1 ? 's' : ''} hors critères.</li>`;
     return;
   }
   // Spot affiché par défaut : le meilleur du classement.
@@ -542,15 +549,16 @@ function renderRanking() {
   el.innerHTML = rows.map((r, i) => {
     const tideTxt = tideLabel(r.ctx);
     return `<li class="rank-row${r.spot.id === state.selectedSpotId ? ' selected' : ''}" data-rank="${r.spot.id}">
-      <span class="rank-num ${r.ok ? 'good' : 'bad'}">${i + 1}</span>
+      <span class="rank-num good">${i + 1}</span>
       <div class="rank-info">
         <div class="spot-name">${escapeHtml(r.spot.name)}
-          <span class="badge ${r.ok ? 'good' : 'bad'}">${r.ok ? 'GO' : 'NO GO'}</span>
+          <span class="badge good">GO</span>
         </div>
         <div class="spot-coords">houle ${fmt(r.hour.swellHeight, 1)} m · ${fmt(r.hour.swellPeriod, 0)} s · vent ${fmt(r.hour.windSpeed, 0)} km/h ${degToDir(r.hour.windDirection)}${tideTxt ? ' · ' + tideTxt : ''}</div>
       </div>
     </li>`;
-  }).join('');
+  }).join('')
+    + (nogo > 0 ? `<li class="hint ranking-nogo">${nogo} autre${nogo > 1 ? 's' : ''} spot${nogo > 1 ? 's' : ''} hors critères</li>` : '');
   el.querySelectorAll('[data-rank]').forEach((li) => {
     li.addEventListener('click', () => {
       state.selectedSpotId = li.dataset.rank;
