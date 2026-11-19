@@ -12,7 +12,7 @@ import { renderSwellChart, renderTideChart, tideCoefficient } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '35';
+const APP_VERSION = '36';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;
@@ -34,6 +34,8 @@ let state = {
 let sessionSnapshotCache = null; // { when: ms, snapshot } — conditions chargées pour la date du formulaire
 let spotsMap = null; // instance Leaflet de la carte des spots
 let spotMarkers = {};
+let spotPicker = null; // mini-carte de sélection de l'emplacement (formulaire spot)
+let spotPin = null; // repère déplaçable sur la mini-carte
 
 let refreshing = false;
 
@@ -241,6 +243,59 @@ function openSpotForm(spotId) {
   $('spot-coef-max').value = typeof c.coefMax === 'number' ? c.coefMax : 120;
   $('spot-edit-card').style.display = 'block';
   $('spot-edit-card').scrollIntoView({ behavior: 'smooth' });
+  // La mini-carte doit être initialisée quand son conteneur est visible.
+  const pLat = parseFloat($('spot-lat').value);
+  const pLng = parseFloat($('spot-lng').value);
+  setTimeout(() => initSpotPicker(
+    Number.isFinite(pLat) ? pLat : 43.4333,
+    Number.isFinite(pLng) ? pLng : -1.5833), 60);
+}
+
+// Mini-carte OpenStreetMap : un appui (ou un repère déplacé) remplit les coordonnées.
+function initSpotPicker(lat, lng) {
+  const el = $('spot-picker');
+  if (!el) return;
+  if (typeof L === 'undefined') {
+    el.innerHTML = '<p class="hint">Carte indisponible : connexion requise au premier chargement.</p>';
+    return;
+  }
+  if (!spotPicker) {
+    spotPicker = L.map(el, { scrollWheelZoom: false });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 18,
+      attribution: '© OpenStreetMap',
+    }).addTo(spotPicker);
+    spotPicker.on('click', (e) => placeSpotPin(e.latlng));
+    // Saisie manuelle : le repère suit les coordonnées tapées.
+    $('spot-lat').addEventListener('input', updatePinFromFields);
+    $('spot-lng').addEventListener('input', updatePinFromFields);
+  }
+  setTimeout(() => { spotPicker.invalidateSize(); }, 30);
+  spotPicker.setView([lat, lng], 14);
+  updatePinFromFields();
+}
+
+function placeSpotPin(latlng) {
+  $('spot-lat').value = latlng.lat.toFixed(4);
+  $('spot-lng').value = latlng.lng.toFixed(4);
+  updatePinFromFields();
+}
+
+function updatePinFromFields() {
+  const lat = parseFloat($('spot-lat').value);
+  const lng = parseFloat($('spot-lng').value);
+  if (!spotPicker || !Number.isFinite(lat) || !Number.isFinite(lng)) return;
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return;
+  if (!spotPin) {
+    spotPin = L.marker([lat, lng], { draggable: true }).addTo(spotPicker);
+    spotPin.on('dragend', () => {
+      const p = spotPin.getLatLng();
+      $('spot-lat').value = p.lat.toFixed(4);
+      $('spot-lng').value = p.lng.toFixed(4);
+    });
+  } else {
+    spotPin.setLatLng([lat, lng]);
+  }
 }
 
 function saveSpotForm() {

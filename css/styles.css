@@ -301,6 +301,10 @@ select[multiple] { height: auto; }
 
 #spots-map { height: 280px; border-radius: 10px; border: 1px solid #e3ecf1; z-index: 1; }
 
+/* Mini-carte de sélection de l'emplacement (formulaire spot) */
+#spot-picker { height: 220px; border-radius: 8px; border: 1px solid #e3ecf1; z-index: 1; margin: 4px 0 12px; }
+body.night #spot-picker { border-color: #2a4a5e; }
+
 .btn-row { display: flex; gap: 8px; margin-top: 8px; }
 .btn-row button { flex: 1; }
 
