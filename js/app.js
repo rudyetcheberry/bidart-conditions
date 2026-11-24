@@ -12,7 +12,7 @@ import { renderSwellChart, renderTideChart, tideCoefficient } from './chart.js';
 
 const $ = (id) => document.getElementById(id);
 
-const APP_VERSION = '38';
+const APP_VERSION = '39';
 const MARINE_TTL = 6 * 60 * 60 * 1000;
 const TIDE_TTL = 24 * 60 * 60 * 1000;
 const METAR_TTL = 30 * 60 * 1000;

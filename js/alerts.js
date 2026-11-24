@@ -6,8 +6,11 @@ export function degToDir(deg) {
 }
 
 // Unité de coefficient (Boucau-Bayonne) : C = marnage / U × 100.
-// Même valeur que dans chart.js (TIDE_UNIT).
-const TIDE_UNIT = 3.6;
+// Calibration = marnage au coef 100 : 3,79 m (maree.info/SHOM ; maxima
+// 4,49 m ≈ coef 118, cohérent). Même valeur que dans chart.js (TIDE_UNIT).
+// Le coefficient SHOM est borné à [20 ; 120].
+const TIDE_UNIT = 3.79;
+const clampCoef = function (c) { return Math.max(20, Math.min(120, c)); };
 
 function windDirAllowed(deg, allowed) {
   if (!allowed || allowed.length === 0 || allowed.includes('any')) return true;
@@ -35,7 +38,7 @@ export function tideContextAt(tides, when) {
     // Mi-marée : on considère la partie centrale de la mi-marée (±20 % de la durée).
     midTide: frac >= 0.4 && frac <= 0.6,
     frac,
-    coefficient: Math.round((Math.abs(e2.height - e1.height) / TIDE_UNIT) * 100),
+    coefficient: clampCoef(Math.round((Math.abs(e2.height - e1.height) / TIDE_UNIT) * 100)),
   };
 }
 

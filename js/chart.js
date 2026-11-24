@@ -15,10 +15,12 @@ const PAD_R = 14;
 const PAD_T = 14;
 const PAD_B = 30;
 
-// Unité de hauteur (m) pour Boucau-Bayonne / Biarritz : marnage moyen des
-// vives-eaux équinoxiales. Sert au coefficient de marée C = marnage / U × 100.
-// Calibration approximative (maree.info : marnage 1,52 m → coef 41 ; 1,30 m → 38).
-export const TIDE_UNIT = 3.6;
+// Unité de hauteur (m) pour Boucau-Bayonne / Biarritz, port SHOM de référence.
+// Calibration = marnage au coefficient 100 : maree.info/SHOM affiche 3,79 m
+// pour Boucau-Bayonne (maxima 4,49 m ≈ coef 118 ; 3,79 × 1,18 = 4,47 ✓).
+// Le coefficient SHOM est national (calculé pour Brest, U = 6,10 m) ; le
+// marnage local au coef 100, lui, vaut 3,79 m à Boucau-Bayonne.
+export const TIDE_UNIT = 3.79;
 
 // Coefficient de marée (20–120) d'un extrême, calculé à partir du marnage
 // avec l'extrême opposé voisin (formule C = marnage / U × 100).
@@ -32,7 +34,9 @@ export function tideCoefficient(tides, idx) {
     other = tides[idx - 1] && tides[idx - 1].type === 'high' ? tides[idx - 1] : tides[idx + 1];
   }
   if (!other || typeof other.height !== 'number') return null;
-  return Math.round((Math.abs(t.height - other.height) / TIDE_UNIT) * 100);
+  // Bornage SHOM : le coefficient officiel est compris entre 20 et 120.
+  const c = Math.round((Math.abs(t.height - other.height) / TIDE_UNIT) * 100);
+  return Math.max(20, Math.min(120, c));
 }
 
 // tides (facultatif) : extrêmes Stormglass pour évaluer les critères de marée
